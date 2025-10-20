@@ -1,27 +1,59 @@
 import sys
 
-from PyQt5.QtCore import QSize, Qt
-from PyQt5.QtWidgets import QApplication, QMainWindow, QPushButton
+from PyQt5.QtWidgets import (
+    QApplication,
+    QCheckBox,
+    QTabWidget,
+    QVBoxLayout,
+    QWidget,
+    QFormLayout,
+    QLineEdit,
+    QDialogButtonBox
+)
 
-
-# Subclass QMainWindow to customize your application's main window
-class MainWindow(QMainWindow):
+class Window(QWidget):
     def __init__(self):
         super().__init__()
+        
+        self.setWindowTitle("Processing GUI")
+        self.resize(800, 400)
+        # Create a top-level layout
+        layout = QVBoxLayout()
+        self.setLayout(layout)
+        # Create the tab widget with two tabs
+        tabs = QTabWidget()
+        tabs.addTab(self.ImportTabUI(), "Import")
+        tabs.addTab(self.FilteringTabUI(), "Network")
+        layout.addWidget(tabs)
 
-        self.setWindowTitle("Neural Processing GUI")
+    def ImportTabUI(self):
+        """Create the General page UI."""
+        importTab = QWidget()
+        layout = QVBoxLayout()
+        formlayout = QFormLayout()
+        formlayout.addRow("Data Path:", QLineEdit())
+        formlayout.addRow("See Data:", QCheckBox())
+        btnBox = QDialogButtonBox()
+        btnBox.setStandardButtons(
+            QDialogButtonBox.Ok | QDialogButtonBox.Cancel
+        )
+        layout.addLayout(formlayout)
+        layout.addWidget(btnBox)
+        importTab.setLayout(layout)
+        return importTab
 
-        button = QPushButton("Button")
+    def FilteringTabUI(self):
+        """Create the Network page UI."""
+        filteringTab = QWidget()
+        layout = QVBoxLayout()
+        layout.addWidget(QCheckBox("Network Option 1"))
+        layout.addWidget(QCheckBox("Network Option 2"))
+        
+        filteringTab.setLayout(layout)
+        return filteringTab
 
-        self.setFixedSize(QSize(400, 300))
-
-        # Set the central widget of the Window.
-        self.setCentralWidget(button)
-
-
-app = QApplication(sys.argv)
-
-window = MainWindow()
-window.show()
-
-app.exec()
+if __name__ == "__main__":
+    app = QApplication(sys.argv)
+    window = Window()
+    window.show()
+    sys.exit(app.exec_())
