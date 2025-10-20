@@ -1,6 +1,6 @@
 # Libraries
 import sys
-import pywt
+import pywavelets
 import time
 import numpy as np
 import scipy as sp
@@ -1031,19 +1031,19 @@ def wavelet_decomp(y, fs, type='dwt',verbose=False, **kwargs):
         print("Wavelet decomposition started...")    
     if type=="dwt":
         # Multilevel decomposition using wavedec
-        coeffs = pywt.wavedec(y, wavelet=kwargs['wavelet'], level=kwargs['level'])
+        coeffs = pywavelets.wavedec(y, wavelet=kwargs['wavelet'], level=kwargs['level'])
         st = kwargs['start_level']
         end = kwargs['end_level']
         #coeffs[0] = np.zeros_like(coeffs[0]) # Approx coeff to zero
         for i in np.arange(st, end):
             coeffs[i] = np.zeros_like(coeffs[i])
         # Multilevel reconstruction using waverec: Multilevel 1D Inverse Discrete Wavelet Transform.
-        sig = pywt.waverec(coeffs, wavelet=kwargs['wavelet'])
+        sig = pywavelets.waverec(coeffs, wavelet=kwargs['wavelet'])
         
     elif type=='swt':
         ## Multilevel 1D stationary wavelet transform.
-        coeffs = pywt.swt(y, axis=-1, **kwargs)
-        sig = pywt.iswt(coeffs, wavelet=kwargs['wavelet'])
+        coeffs = pywavelets.swt(y, axis=-1, **kwargs)
+        sig = pywavelets.iswt(coeffs, wavelet=kwargs['wavelet'])
     else:
         ## CWT tranform
         # OJO: db no esta disponible para cwt
@@ -1051,11 +1051,11 @@ def wavelet_decomp(y, fs, type='dwt',verbose=False, **kwargs):
         if not isinstance(y, np.ndarray):
             y = y.to_numpy()
         if kwargs['twave']>0:
-            # Before: coeffs, freq = pywt.cwt(y, [kwargs['twave']*fs-0.001, kwargs['twave']*fs+0.001], wavelet=kwargs['wavelet'])
-            coeffs, freq = pywt.cwt(y, [(kwargs['twave']-kwargs['tinterval'])*fs, (kwargs['twave']+kwargs['tinterval'])*fs], wavelet=kwargs['wavelet'])
+            # Before: coeffs, freq = pywavelets.cwt(y, [kwargs['twave']*fs-0.001, kwargs['twave']*fs+0.001], wavelet=kwargs['wavelet'])
+            coeffs, freq = pywavelets.cwt(y, [(kwargs['twave']-kwargs['tinterval'])*fs, (kwargs['twave']+kwargs['tinterval'])*fs], wavelet=kwargs['wavelet'])
         elif np.mean(kwargs['scales'])!=0:
             print('scales')
-            coeffs, freq = pywt.cwt(y, kwargs['scales'], wavelet=kwargs['wavelet'])
+            coeffs, freq = pywavelets.cwt(y, kwargs['scales'], wavelet=kwargs['wavelet'])
         #print(coeffs)
         sig = np.mean(coeffs, 0)
     if verbose:
@@ -1087,7 +1087,7 @@ def DWT_with_denoising(y, fs, verbose=False, **kwargs):
     """
     if verbose:
         print("DWT_with_denoising started...")    
-    coeffs = pywt.wavedec(y, wavelet=kwargs['wavelet'], level=kwargs['level'])
+    coeffs = pywavelets.wavedec(y, wavelet=kwargs['wavelet'], level=kwargs['level'])
     st = kwargs['start_level']
     end = kwargs['end_level']
 
@@ -1153,7 +1153,7 @@ def DWT_with_denoising(y, fs, verbose=False, **kwargs):
         plt.show()
     """
     # Reconstruct signal
-    sig = pywt.waverec(new_coeffs, wavelet=kwargs['wavelet'])
+    sig = pywavelets.waverec(new_coeffs, wavelet=kwargs['wavelet'])
     sig = sig[:len(y)] #Ensure we're getting the same output length
     if verbose:
         print("Wavelet decomposition finished")
@@ -1182,7 +1182,7 @@ def SWT_with_denoising(y, fs, k=1,thres_type="soft", DBplot=False, **kwargs):
       = 0 if abs(x) ≤ T .
     """
     print("SWT_with_denoising started...")    
-    coeffs = pywt.swt(y, axis=-1, **kwargs)
+    coeffs = pywavelets.swt(y, axis=-1, **kwargs)
     num_dec_levels = len(coeffs[0])
     #print(num_dec_levels)
     new_coeffs = []
@@ -1222,7 +1222,7 @@ def SWT_with_denoising(y, fs, k=1,thres_type="soft", DBplot=False, **kwargs):
 
     
     # Reconstruct signal
-    sig = pywt.iswt(new_coeffs, wavelet=kwargs['wavelet'])
+    sig = pywavelets.iswt(new_coeffs, wavelet=kwargs['wavelet'])
 
     print("Wavelet decomposition finished")
     return sig
