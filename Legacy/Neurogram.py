@@ -59,9 +59,9 @@ from spclustering import SPC #, plot_temperature_plot  https://github.com/fercha
 sys.path.append("../")
 
 # Own libraries
-from datasets.load import load_setup
-from datasets.load import load_matfiles, load_data_multich, load_bsamples,load_data_dask, load_bsamples_start_end
-from processing.utils import *
+from load import load_setup
+from load import load_matfiles, load_data_multich, load_bsamples,load_data_dask, load_bsamples_start_end
+from utils import *
 from visualization.graphics.plots import *
 from processing.filter import FIR_smooth
 from visualization.SC_topo import *
@@ -1977,74 +1977,74 @@ class MyWaveforms:
 
 
 	def fit_WC3(self,data, spclustering, min_clus=20, elbow_min=0.4, c_ov=0.7, return_metadata=False):
-		'''
-		Super paramagnetic cluster 
-		Removing self from spc.py (https://github.com/ferchaure/SPC) because the funcitons were not detected directly from the class
-		Chaure FJ, Rey HG, Quian Quiroga R. A novel and fully automatic spike sorting implementation with variable number of features. J Neurophysiol , 2018. doi:10.1152/jn.00339.2018.
-		'''
-		classes, sizes= spclustering.run(data, return_sizes=True)
+			'''
+			Super paramagnetic cluster 
+			Removing self from spc.py (https://github.com/ferchaure/SPC) because the funcitons were not detected directly from the class
+			Chaure FJ, Rey HG, Quian Quiroga R. A novel and fully automatic spike sorting implementation with variable number of features. J Neurophysiol , 2018. doi:10.1152/jn.00339.2018.
+			'''
+			classes, sizes= spclustering.run(data, return_sizes=True)
 
-		maxdiff = np.max(np.diff(sizes[:,1:].astype(int),axis=0),1)
-		maxdiff[maxdiff<0]=0
+			maxdiff = np.max(np.diff(sizes[:,1:].astype(int),axis=0),1)
+			maxdiff[maxdiff<0]=0
 
-		main_cluster = sizes[:,0]
+			main_cluster = sizes[:,0]
 
-		prop = (main_cluster[1:]+maxdiff)/main_cluster[0:-1]
-		aux = next((i for i in range(len(prop)) if prop[i]<elbow_min),np.NaN)+1 #percentaje of the rest
+			prop = (main_cluster[1:]+maxdiff)/main_cluster[0:-1]
+			aux = next((i for i in range(len(prop)) if prop[i]<elbow_min),np.NaN)+1 #percentaje of the rest
 
-		# The next lines if removes the particular case where just a class is found at the 
-		# lowest temperature and with just a small change the rest appears
-		# all together at the next temperature
-		if (not np.isnan(aux)) and spclustering.mintemp==0 and aux==2:
-			aux = next((i for i in range(len(prop)-1) if prop[i+1]<elbow_min),np.NaN)+2 #percentaje of the rest
-		tree = sizes[0:-1,:]
-		clus = np.zeros_like(tree).astype(bool)
+			# The next lines if removes the particular case where just a class is found at the 
+			# lowest temperature and with just a small change the rest appears
+			# all together at the next temperature
+			if (not np.isnan(aux)) and spclustering.mintemp==0 and aux==2:
+				aux = next((i for i in range(len(prop)-1) if prop[i+1]<elbow_min),np.NaN)+2 #percentaje of the rest
+			tree = sizes[0:-1,:]
+			clus = np.zeros_like(tree).astype(bool)
 
-		clus[tree >= min_clus]=1; #only check the ones that cross the thr
-		diffs =  np.diff(tree.astype(int),axis=0)
-		clus = clus  * np.vstack([np.ones_like(clus[1,:]), diffs>min_clus])
+			clus[tree >= min_clus]=1; #only check the ones that cross the thr
+			diffs =  np.diff(tree.astype(int),axis=0)
+			clus = clus  * np.vstack([np.ones_like(clus[1,:]), diffs>min_clus])
 
-		for ii in range(clus.shape[0]):
-			detect = np.nonzero(clus[ii,:])[0]
-			if len(detect>0):
-				clus[ii,:detect[-1]]=1
+			for ii in range(clus.shape[0]):
+				detect = np.nonzero(clus[ii,:])[0]
+				if len(detect>0):
+					clus[ii,:detect[-1]]=1
 
-		elbow = tree.shape[0]
-		if not np.isnan(aux):
-			clus[aux:,:] = 0
-			elbow = aux
-
-
-		if return_metadata:
-			metadata = {'method': 'WC3'}
-			allpeaks = np.where(clus)
-			metadata['method_info'] = {'elbow':elbow, 'peaks_temp':allpeaks[0], 'peaks_cl':allpeaks[1]}
-
-		for ti in reversed(range(elbow)):
-			detect = np.where(clus[ti,:])[0]
-			for dci in detect:
-				cl = classes[ti,:] == dci
-				for tj in np.arange(ti-1,-1,-1):
-					toremove = np.where(clus[tj,:])[0]
-					for rj in toremove:
-						totest = classes[tj,:] == rj
-						if sum(cl * totest)/min(sum(totest),sum(cl)) >= c_ov:
-	 						clus[tj,rj]=0
+			elbow = tree.shape[0]
+			if not np.isnan(aux):
+				clus[aux:,:] = 0
+				elbow = aux
 
 
-		temp, clust_num = np.where(clus)
-		c = 1 #initial class
-		labels = np.zeros(classes.shape[1], dtype=int)
-		for tx,cx in zip(temp, clust_num):
-			labels[classes[tx,:]== cx] = c
-			c += 1
+			if return_metadata:
+				metadata = {'method': 'WC3'}
+				allpeaks = np.where(clus)
+				metadata['method_info'] = {'elbow':elbow, 'peaks_temp':allpeaks[0], 'peaks_cl':allpeaks[1]}
 
-		if return_metadata:
-			metadata['clusters_info']={i+1: {'index':clust_num[i], 'itemp':ti} for i,ti in enumerate(temp)}
-			metadata['sizes'] = sizes
-			metadata['temperatures'] = spclustering.temp_vector.copy()
-			return labels, metadata
-		return labels
+			for ti in reversed(range(elbow)):
+				detect = np.where(clus[ti,:])[0]
+				for dci in detect:
+					cl = classes[ti,:] == dci
+					for tj in np.arange(ti-1,-1,-1):
+						toremove = np.where(clus[tj,:])[0]
+						for rj in toremove:
+							totest = classes[tj,:] == rj
+							if sum(cl * totest)/min(sum(totest),sum(cl)) >= c_ov:
+								clus[tj,rj]=0
+
+
+			temp, clust_num = np.where(clus)
+			c = 1 #initial class
+			labels = np.zeros(classes.shape[1], dtype=int)
+			for tx,cx in zip(temp, clust_num):
+				labels[classes[tx,:]== cx] = c
+				c += 1
+
+			if return_metadata:
+				metadata['clusters_info']={i+1: {'index':clust_num[i], 'itemp':ti} for i,ti in enumerate(temp)}
+				metadata['sizes'] = sizes
+				metadata['temperatures'] = spclustering.temp_vector.copy()
+				return labels, metadata
+			return labels
 
 	def plot_temperature_plot(self,metadata,ax=None):
 		if ax is None:
