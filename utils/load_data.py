@@ -488,8 +488,8 @@ def load_bsamples(path, fs=None, start=0, nsamples=None, verbose=1):
     #print(nsamples)
 
     # Create time vector every 1 min from length glucose data
-    time = np.arange(0, nsamples+fs, fs*60) / fs
-    print(time)
+    time_minutes = np.arange(0, nsamples+fs, fs*60) / fs
+    print(time_minutes)
     print(start)
     time = time_minutes+start
     print(time_minutes)

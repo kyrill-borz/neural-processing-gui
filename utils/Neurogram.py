@@ -59,7 +59,7 @@ from spclustering import SPC #, plot_temperature_plot  https://github.com/fercha
 sys.path.append("../")
 
 # Own libraries
-from load_data import load_setup, load_matfiles, load_data_multich, load_bsamples,load_data_dask, load_bsamples_start_end
+from utils.load_data import load_setup, load_matfiles, load_data_multich, load_bsamples,load_data_dask, load_bsamples_start_end
 from utils import *
 # from visualization.graphics.plots import *
 # from processing.filter import FIR_smooth
