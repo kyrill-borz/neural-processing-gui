@@ -55,64 +55,70 @@ from utils.utils import *
 from utils.Neurogram import * 
 
 os.environ['KMP_DUPLICATE_LIB_OK']='True'
-time_start_overall = time.time()
-dir_name = ('./data/')
-#path = askdirectory(initialdir=dir_name, title="Select directory where data are stored")
-path = '.\data\rec_250604_135546_161646'
 
-run_first_time = True
-map_path = './data/map_linear.csv' 
+def apploadfile(path=None, map_path=None):
+    time_start_overall = time.time()
+    dir_name = ('./data/')
+    #path = askdirectory(initialdir=dir_name, title="Select directory where data are stored")
+    path = '.\data\rec_250604_135546_161646'
 
-time_start = time.time()
+    run_first_time = True
+    map_path = './data/map_linear.csv' 
+
+    time_start = time.time()
 
 
-# Configure loading
-load_raw= True # vs filtered
-load_from_file=True  # True: pre-saved file vs multiple rhs
-downsample = 1 # Chronic recordings from VN sampled at 20KHz    
+    # Configure loading
+    load_raw= True # vs filtered
+    load_from_file=True  # True: pre-saved file vs multiple rhs
+    downsample = 1 # Chronic recordings from VN sampled at 20KHz    
 
-# Start and dur in samples (multiply by freq if needed)
-start_min= 0 #80                   
-dur_min= 40# 1-0   #0 = whole recording                 
-port = 'Port B' #
+    # Start and dur in samples (multiply by freq if needed)
+    start_min= 0 #80                   
+    dur_min= 40# 1-0   #0 = whole recording                 
+    port = 'Port B' #
 
-# with open("%s/day.txt"%path, "r") as f:
-#     day = f.read()
-day = 'Day4'
-print(port)
+    # with open("%s/day.txt"%path, "r") as f:
+    #     day = f.read()
+    day = 'Day4'
+    print(port)
 
-#For E1 and E2 fs = 30000
-# Rest fs = 20000
-fs = 20000
-start=fs*60*start_min   #CHANGE FS!!!
-if dur_min == 0:
-    dur= None 
-else: 
-    dur = fs*60*dur_min       
-    
-if load_raw:
-    # Load original raw pkl/parquet
-    record = Recording.open_record(path, start=start, dur=dur, 
-                                   load_from_file=load_from_file, 
-                                   load_multiple_files=True,
-                                   downsample=downsample,
-                                   port=port  ,  # Select recording port
-                                   map_path=map_path,
-                                   day=day,
-                                   verbose=0)
-else:
-    # Load filtered pkl
-    filepath = askopenfile(initialdir=path, title="Select previously stored data file", 
-                                filetypes=(   [("Pickle Files", "*.pkl"), 
-                                              ("Parquet Files", "*.parquet"),
-                                              ("All Files", "*.*")]))  # Add more file types if needed
-    try:
-        record = pd.read_pickle(filepath.name)
-    except: 
-        record = pd.read_parquet(filepath.name) # 
-    print(record.recording)
-    record.recording.name = 'HF_filtered' # Change name
+    #For E1 and E2 fs = 30000
+    # Rest fs = 20000
+    fs = 20000
+    start=fs*60*start_min   #CHANGE FS!!!
+    if dur_min == 0:
+        dur= None 
+    else: 
+        dur = fs*60*dur_min       
+        
+    if load_raw:
+        # Load original raw pkl/parquet
+        record = Recording.open_record(path, start=start, dur=dur, 
+                                    load_from_file=load_from_file, 
+                                    load_multiple_files=True,
+                                    downsample=downsample,
+                                    port=port  ,  # Select recording port
+                                    map_path=map_path,
+                                    day=day,
+                                    verbose=0)
+    else:
+        # Load filtered pkl
+        filepath = askopenfile(initialdir=path, title="Select previously stored data file", 
+                                    filetypes=(   [("Pickle Files", "*.pkl"), 
+                                                ("Parquet Files", "*.parquet"),
+                                                ("All Files", "*.*")]))  # Add more file types if needed
+        try:
+            record = pd.read_pickle(filepath.name)
+        except: 
+            record = pd.read_parquet(filepath.name) # 
+        print(record.recording)
+        record.recording.name = 'HF_filtered' # Change name
 
-record.channels = 'all' #'5, 24, 26, 27, 28' # # OldFFC:     NewFFC: 5, 20, 24, 26, 27, 28
+    record.channels = 'all' #'5, 24, 26, 27, 28' # # OldFFC:     NewFFC: 5, 20, 24, 26, 27, 28
 
-print("Time elapsed in loading: {} seconds".format(time.time()-time_start)) 
+    print("Time elapsed in loading: {} seconds".format(time.time()-time_start)) 
+    return record
+
+if __name__ == "__main__":
+    rec = apploadfile()
