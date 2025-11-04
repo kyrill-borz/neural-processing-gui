@@ -767,7 +767,7 @@ def clustering_avg_dis(pca_components, max_num_clusters=15):
 def get_spike_amplitude(signal, spikes_idx=[]):
     # Moved to utils as it's a general method
     spikes_vector = np.zeros(len(signal))
-    if type(spikes_idx) is 'list':
+    if type(spikes_idx) == 'list':
         spikes_idx_array = np.array(list(spikes_idx))
         sys.exit()
         if spikes_idx:
