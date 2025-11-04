@@ -1,5 +1,5 @@
 import sys
-
+import pyqtgraph as pg
 from PyQt5.QtWidgets import (
     QApplication,
     QCheckBox,
@@ -7,6 +7,7 @@ from PyQt5.QtWidgets import (
     QVBoxLayout,
     QWidget,
     QFormLayout,
+    QGridLayout,
     QLineEdit,
     QDialogButtonBox
 )
@@ -23,7 +24,9 @@ class Window(QWidget):
         # Create the tab widget with two tabs
         tabs = QTabWidget()
         tabs.addTab(self.ImportTabUI(), "Import")
-        tabs.addTab(self.FilteringTabUI(), "Network")
+        tabs.addTab(self.FilteringTabUI(), "Filtering")
+        tabs.setTabPosition(QTabWidget.West)
+        tabs.tabBar().setStyleSheet("QTabBar::tab{ height: 100 px; width: 150px; }")
         layout.addWidget(tabs)
 
     def ImportTabUI(self):
@@ -45,10 +48,11 @@ class Window(QWidget):
     def FilteringTabUI(self):
         """Create the Network page UI."""
         filteringTab = QWidget()
-        layout = QVBoxLayout()
-        layout.addWidget(QCheckBox("Network Option 1"))
-        layout.addWidget(QCheckBox("Network Option 2"))
-        
+        layout = QGridLayout()
+        layout.addWidget(QCheckBox("Filter 1"), 0,0)
+        layout.addWidget(QCheckBox("Filter 2"),1,0)
+        plot_graph = pg.PlotWidget()
+        layout.addWidget(plot_graph,2,1)
         filteringTab.setLayout(layout)
         return filteringTab
 
