@@ -169,7 +169,7 @@ class Recording:
 		print(neural)
 		length = len(neural)
 		print(length)
-		print(information)
+		#print(information)
 
 		# Load electrode map
 		if map_path is None:
