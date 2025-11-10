@@ -8,6 +8,7 @@ import pycwt
 import statistics
 import random
 import pickle
+import polars as pl 
 #import h5py
 import numpy as np
 import scipy as sp
@@ -120,5 +121,79 @@ def apploadfile(path=None, map_path=None):
     print("Time elapsed in loading: {} seconds".format(time.time()-time_start)) 
     return record
 
+def apploadfilepolars(path=None, map_path=None):
+    time_start_overall = time.time()
+    dir_name = './data/'
+    # path = askdirectory(initialdir=dir_name, title="Select directory where data are stored")
+    path = './data/rec_250604_135546_161646'
+
+    run_first_time = True
+    map_path = './data/map_linear.csv' 
+
+    time_start = time.time()
+
+    # Configuration
+    load_raw = True  # vs filtered
+    load_from_file = True  # True: pre-saved file vs multiple rhs
+    downsample = 1  # Chronic recordings from VN sampled at 20KHz    
+
+    # Start and duration in samples (multiply by freq if needed)
+    start_min = 0
+    dur_min = 40
+    port = 'Port B'
+
+    # Example hardcoded for now
+    day = 'Day4'
+    print(port)
+
+    fs = 20000
+    start = fs * 60 * start_min
+    dur = None if dur_min == 0 else fs * 60 * dur_min
+
+    if load_raw:
+        # Load using your custom Recording class
+        record = Recording.open_record(
+            path,
+            start=start,
+            dur=dur,
+            load_from_file=load_from_file,
+            load_multiple_files=True,
+            downsample=downsample,
+            port=port,
+            map_path=map_path,
+            day=day,
+            verbose=0
+        )
+    else:
+        # Load filtered data using Polars
+        filepath = askopenfile(
+            initialdir=path,
+            title="Select previously stored data file",
+            filetypes=[
+                ("Pickle Files", "*.pkl"),
+                ("Parquet Files", "*.parquet"),
+                ("All Files", "*.*")
+            ]
+        )
+
+        if filepath.name.endswith('.parquet'):
+            record = pl.read_parquet(filepath.name)
+        elif filepath.name.endswith('.pkl'):
+            # Polars doesn’t directly read pickle files, so fall back to pandas temporarily
+            import pandas as pd
+            record = pl.from_pandas(pd.read_pickle(filepath.name))
+        else:
+            record = pl.read_csv(filepath.name)  # fallback for csv-like
+
+        print("Loaded file:", filepath.name)
+        # If record has nested structure like record.recording, adapt accordingly
+        if hasattr(record, "recording"):
+            record.recording.name = 'HF_filtered'
+
+    record.channels = 'all'
+    print(f"Time elapsed in loading: {time.time() - time_start:.2f} seconds")
+
+    return record
+
 if __name__ == "__main__":
-    rec = apploadfile()
+    rec = apploadfilepolars()
