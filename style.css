@@ -1,0 +1,124 @@
+/* -------------------------------------------------
+   GLOBAL – Modern Light Grey UI
+   ------------------------------------------------- */
+QWidget {
+    background-color: #f2f2f2;     /* soft modern grey */
+    color: #1c1c1c;
+    font-family: "Segoe UI", Roboto, sans-serif;
+    font-size: 14px;
+}
+
+QFrame, QWidget {
+    border-radius: 8px;
+}
+
+/* -------------------------------------------------
+   TAB WIDGET (vertical, left aligned)
+   ------------------------------------------------- */
+QTabWidget::pane {
+    background: #ffffff;
+    border: 1px solid #cccccc;
+    border-radius: 10px;
+}
+
+/* Base (unselected) tabs */
+QTabBar::tab {
+    background: #e6e6e6;
+    color: #333;
+    padding: 10px 14px;
+    margin: 4px;
+    border-radius: 6px;
+    min-width: 130px;
+    border: 1px solid #d0d0d0;
+}
+
+/* Selected tab aligned flush with main content */
+QTabBar::tab:selected {
+    background: #ffffff;                /* match content pane */
+    border: 1px solid #cccccc;
+    border-right: none;                 /* remove border on right side */
+    margin-right: -1px;                 /* pull into pane for seamless join */
+    font-weight: 600;
+    color: #111;
+}
+
+/* Hover */
+QTabBar::tab:hover {
+    background: #f0f0f0;
+}
+
+/* -------------------------------------------------
+   BUTTONS
+   ------------------------------------------------- */
+QPushButton,
+QDialogButtonBox QPushButton {
+    background: #ffffff;
+    border: 1px solid #bfbfbf;
+    padding: 8px 14px;
+    border-radius: 6px;
+}
+
+QPushButton:hover {
+    background: #f7f7f7;
+}
+
+QPushButton:pressed {
+    background: #e8e8e8;
+}
+
+/* -------------------------------------------------
+   LINE EDITS
+   ------------------------------------------------- */
+QLineEdit {
+    background: #ffffff;
+    border: 1px solid #c8c8c8;
+    padding: 7px;
+    border-radius: 6px;
+}
+
+QLineEdit:focus {
+    border: 1px solid #7da6ff;
+}
+
+/* -------------------------------------------------
+   CHECKBOXES
+   ------------------------------------------------- */
+QCheckBox::indicator {
+    width: 18px;
+    height: 18px;
+    background: #ffffff;
+    border: 1px solid #b8b8b8;
+    border-radius: 4px;
+}
+
+QCheckBox::indicator:hover {
+    border: 1px solid #7da6ff;
+}
+
+QCheckBox::indicator:checked {
+    background: #7da6ff;
+    border: 1px solid #5a85dd;
+}
+
+/* -------------------------------------------------
+   COMBOBOXES
+   ------------------------------------------------- */
+QComboBox {
+    background: #ffffff;
+    border: 1px solid #c8c8c8;
+    padding: 7px;
+    border-radius: 6px;
+}
+/* -------------------------------------------------
+   PYQTGRAPH – makes graphs fit the light grey theme
+   ------------------------------------------------- */
+PlotWidget, pgPlotWidget {
+    background-color: #ffffff;
+    border: 1px solid #cccccc;
+    border-radius: 8px;
+}
+
+GraphicsView {
+    background: #ffffff;
+    border: none;
+}
