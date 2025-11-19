@@ -1592,7 +1592,6 @@ def load_data_multich(path, start=0, dur=None, port='Port B', load_from_file=Fal
                 # print('---------------')
                 # print(neural)
                 # print('---------------')
-                
             # Check the file is a data file
                 if 'time' in neural.columns:
                     # Set time interval
