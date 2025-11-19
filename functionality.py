@@ -57,37 +57,84 @@ from utils.Neurogram import *
 
 os.environ['KMP_DUPLICATE_LIB_OK']='True'
 
+
+## configs
+
+time_start_overall = time.time()
+dir_name = './data/'
+# path = askdirectory(initialdir=dir_name, title="Select directory where data are stored")
+path = './data/rec_250604_135546_161646'
+
+run_first_time = True
+map_path = './data/map_linear.csv' 
+
+time_start = time.time()
+
+# Configuration
+load_raw = True  # vs filtered
+load_from_file = True  # True: pre-saved file vs multiple rhs
+downsample = 1  # Chronic recordings from VN sampled at 20KHz    
+
+# Start and duration in samples (multiply by freq if needed)
+start_min = 0
+dur_min = 40
+port = 'Port B'
+
+# Example hardcoded for now
+day = 'Day4'
+print(port)
+
+fs = 20000
+start = fs * 60 * start_min
+dur = None if dur_min == 0 else fs * 60 * dur_min
+
+options_filter = [
+    "None", 
+    "butter", 
+    "fir"]                # Binomial Weighted Average Filter
+
+options_detection = [
+    "get_spikes_threshCrossing", # Ojo: get_spikes_threshCrossing needs detects also cardiac 
+                                     # spikes, so use cardiac_window. This method is slower
+    "get_spikes_method",         # Python implemented get_spikes() method. Faster
+    "so_cfar"]                    # Smallest of constant false-alarm rate filter
+
+options_threshold = [
+    "positive",
+    "negative", 
+    "both_thresh"]
+
+filt_config = {
+    'W': [300, 2000], #[300, 2000], #[4950], #   [50] lowpass for HR,  [400, 8000], 4950 if fs is 10000 (needs to be <fs/2 per Nyquist)
+    'None': {},
+    'butter': {
+            'N': 4,                # The order of the filter
+            'btype': 'bandpass', #'bandpass', #'hp'  #'lowpass'     # The type of filter.
+            'fs': 20000,
+    },
+    'butter_non_causal': {   # Not valid for real time applications
+        'N': 4,                # The order of the filter
+        'btype': 'bandpass', #'bandpass', #'hp'  #'lowpass'     # The type of filter.
+    },
+    'fir': {
+            'n': 4,
+    },
+    'notch': {
+            'quality_factor': 30,
+    },
+}
+
+filt_config['butter']['Wn'] = filt_config['W']
+#filt_config['butter']['fs'] = record.fs
+
+config_text = ['Load_from_file %s' %load_from_file, 'Filter: %s'%record.apply_filter, 'Detection: %s'%record.detect_method, 'Threhold type: %s'%record.thresh_type, 'Channels: %s' %record.channels, 'Downsampling: %s' %downsample]
+config_text.append('Port %s' %(port))
+config_text.append('Start %s, Dur: %s' %(start,dur))
+config_text.append('Channels: %s' %record.channels)
+config_text.append('filt_config: %s' %json.dumps(filt_config))
+
 def apploadfile(path=None, map_path=None):
-    time_start_overall = time.time()
-    dir_name = ('./data/')
-    #path = askdirectory(initialdir=dir_name, title="Select directory where data are stored")
-    path = '.\data\rec_250604_135546_161646'
 
-    run_first_time = True
-    map_path = './data/map_linear.csv' 
-
-    time_start = time.time()
-
-
-    # Configure loading
-    load_raw= True # vs filtered
-    load_from_file=True  # True: pre-saved file vs multiple rhs
-    downsample = 1 # Chronic recordings from VN sampled at 20KHz    
-
-    # Start and dur in samples (multiply by freq if needed)
-    start_min= 0 #80                   
-    dur_min= 40# 1-0   #0 = whole recording                 
-    port = 'Port B' #
-
-    # with open("%s/day.txt"%path, "r") as f:
-    #     day = f.read()
-    day = 'Day4'
-    print(port)
-
-    #For E1 and E2 fs = 30000
-    # Rest fs = 20000
-    fs = 20000
-    start=fs*60*start_min   #CHANGE FS!!!
     if dur_min == 0:
         dur= None 
     else: 
@@ -122,34 +169,6 @@ def apploadfile(path=None, map_path=None):
     return record
 
 def apploadfilepolars(path=None, map_path=None):
-    time_start_overall = time.time()
-    dir_name = './data/'
-    # path = askdirectory(initialdir=dir_name, title="Select directory where data are stored")
-    path = './data/rec_250604_135546_161646'
-
-    run_first_time = True
-    map_path = './data/map_linear.csv' 
-
-    time_start = time.time()
-
-    # Configuration
-    load_raw = True  # vs filtered
-    load_from_file = True  # True: pre-saved file vs multiple rhs
-    downsample = 1  # Chronic recordings from VN sampled at 20KHz    
-
-    # Start and duration in samples (multiply by freq if needed)
-    start_min = 0
-    dur_min = 40
-    port = 'Port B'
-
-    # Example hardcoded for now
-    day = 'Day4'
-    print(port)
-
-    fs = 20000
-    start = fs * 60 * start_min
-    dur = None if dur_min == 0 else fs * 60 * dur_min
-
     if load_raw:
         # Load using your custom Recording class
         record = Recording.open_record(
@@ -195,5 +214,119 @@ def apploadfilepolars(path=None, map_path=None):
 
     return record
 
+def displayinformation(record, port, start, dur, downsample, load_from_file, path):
+    record.channels = [24,25,26,27,28,29,30,31] #E9, E10, E11
+
+    # Configure
+    group = 'HR'
+    config_text = []
+    record.apply_filter = options_filter[1]    
+    record.detect_method = options_detection[2]                                    
+    record.thresh_type = options_threshold[0]
+
+    record.path = path  
+    config_text = ['Load_from_file %s' %load_from_file, 'Filter: %s'%record.apply_filter, 'Detection: %s'%record.detect_method, 'Threhold type: %s'%record.thresh_type, 'Channels: %s' %record.channels, 'Downsampling: %s' %downsample]
+    config_text.append('Port %s' %(port))
+    config_text.append('Start %s, Dur: %s' %(start,dur))
+    config_text.append('Channels: %s' %record.channels)
+    config_text.append('filt_config: %s' %json.dumps(filt_config))
+
+    print('SELECTED GENERAL CONFIGURATION:')
+    print('Filter: %s'%record.apply_filter)
+    print('Detection: %s'%record.detect_method)
+    print('Threhold type: %s'%record.thresh_type)
+    print('Channels: %s' %record.channels)   # Intan channels (0-31)
+    print('-------------------------------------')
+
+    record.select_channels(record.channels) # keep_ch_loc=True if we want to display following the map. Otherwise follow the order provided by selected channels.
+    print('map_array: %s' %record.map_array)     #1D array with the corresponding intan channels (0-31) for linear electrode device (1-32 electrodes): map_array[0] is intan channel corresponding to electrode 1
+    print('ch_loc: %s' %record.ch_loc)           #[list of int] list with electrodes locations corresponding to the selected intan channels (inverse of map_array: ch_loc[0] is electrode corresponding to intan ch0 )
+    print('filter_ch %s' %record.filter_ch)      #[list of string] list with the selected intan channels in string mode (starting in 'ch_')
+    print('Z_magnitude %s' %record.Z_magnitude)  # Impedance of selected intan channels
+
+def plotraw(record):
+    # Plot raw data
+    cmap = 'gist_ncar' # 'nipy_spectral'
+    load_raw = True
+    colorbar_ticks_raw=[0, -50]
+    plot_ch=record.channels[0]
+    if load_raw:
+        '''
+        record.plot_signal(record.recording.loc[record.recording.index[int(0*60*record.fs)]:record.recording.index[int(0*60*record.fs)] + pd.Timedelta(seconds=(20*60))],
+                        plot_ch, record.num_rows,record.num_columns, record.channels,
+                        text_label='raw', text_title='Raw signal: intan channel',ylim=[-200, 200],figsize=(10, 10), no_label=False, 
+                        dtformat='%M:%S', savefigpath='%s/figures/%s_%s_original-%s.svg' %(record.path, port, group, current_time),
+                        show_plot=True)
+
+        '''
+        record.plot_freq_content(record.original,int(plot_ch), nperseg=512, max_freq=5000, ylim=[-500,500], dtformat='%H:%M:%S',
+                                figsize=(10, 10), 
+                                show=True,  cmap=cmap, colorbar_ticks=colorbar_ticks_raw) 
+
+def plotfiltered(record):
+    if load_raw:
+        time_start = time.time()
+
+        # If applied clean_df and have Nan values (clean then filter)
+        if record.recording.name == 'clean':
+            kargs = filt_config[record.apply_filter]
+            kargs['fs'] = record.fs
+            sos = sg.butter(**kargs, output='sos')  # Coefficients for SOS filter
+
+            def apply_butterworth_filter(df, sos, channels):
+                # Create a copy of the DataFrame to avoid modifying the original data
+                df_filtered = df.copy()
+
+                # Initialize filter state with sosfilt_zi
+                zi = sg.sosfilt_zi(sos)
+
+                # Apply the filter and update NaN values inside the loop
+                for channel in channels:
+                    mask_nan = df_filtered[channel].isna()
+                    df_filtered[channel], zi = sg.sosfilt(sos, df_filtered[channel].fillna(0.0), zi=zi)
+                    df_filtered[channel][mask_nan] = np.nan
+                    nan_counts = df_filtered[channel].isna().sum()
+                    #print("Number of NaN values in each column:")
+                    #print(nan_counts)
+
+                return df_filtered
+
+            # Apply the Butterworth filter to the specified channels
+            record.filtered = apply_butterworth_filter(record.recording, sos, record.filter_ch)
+        else:
+            signal2filter = record.original ###record.original #record.recording
+            config_text.append('signal2filter: %s' %signal2filter.name)
+            record.filter(signal2filter, record.apply_filter, **filt_config[record.apply_filter])
+            # Change from float64 to float 16
+            record.filtered = convertDfType(record.filtered, typeFloat='float32')
+            #print(record.filtered.dtypes)
+        print("Time elapsed: {} seconds".format(time.time()-time_start))
+        record.recording=record.filtered
+        record.recording.name = 'filtered'
+
+        nperseg=512
+        no_label = False
+        cmap = 'gist_ncar' # 'nipy_spectral'
+        text_label = 'Filtered'
+        plot_ch=record.channels[0]
+        text = 'Channels after %s filtering'%record.apply_filter
+        
+        if filt_config['butter']['btype'] == 'lowpass':
+            freq_max = filt_config['W'][0]
+            textf = 'LF'
+            colorbar_ticks_filt=[20,0,-20,-40]
+        else:
+            freq_max = filt_config['W'][1] #2000 #chronic: 4000
+            textf = 'HF'
+            colorbar_ticks_filt= [5, 0, -50, -100, -150, -200] # in vivo: [5, 0, -50, -100, -150, -200]#, -250] #[-10, -35]  ex vivo: [-50, -100]
+        
+        #'''
+        record.plot_signal(record.filtered.loc[record.filtered.index[int((start_min-start_min)*60*record.fs)]:record.filtered.index[int((start_min-start_min)*60*record.fs)] + pd.Timedelta(seconds=(10*60))],
+                        plot_ch,record.num_rows,record.num_columns, 
+                        channels=record.channels, text_label=text_label, text_title='Butter signal: intan _channel', ylim=[-100,100],
+                        figsize=(20, 10), no_label=no_label, savefigpath='',
+                        show_plot=True)
 if __name__ == "__main__":
     rec = apploadfilepolars()
+    displayinformation(rec, port, start, dur, downsample, load_from_file, path)
+    plotfiltered(rec)
