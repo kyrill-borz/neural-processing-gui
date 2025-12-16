@@ -105,12 +105,18 @@ options_threshold = [
     "both_thresh"]
 
 filt_config = {
-    'W': [300, 2000], #[300, 2000], #[4950], #   [50] lowpass for HR,  [400, 8000], 4950 if fs is 10000 (needs to be <fs/2 per Nyquist)
+    'W': [300, 600], #[300, 2000], #[4950], #   [50] lowpass for HR,  [400, 8000], 4950 if fs is 10000 (needs to be <fs/2 per Nyquist)
     'None': {},
     'butter': {
             'N': 4,                # The order of the filter
             'btype': 'bandpass', #'bandpass', #'hp'  #'lowpass'     # The type of filter.
             'fs': 20000,
+    },
+    'butter_lowpass': {
+            'N': 4,                # The order of the filter
+            'Wn' : 50,
+            'fs': 20000,
+            'btype': 'lowpass', #'bandpass', #'hp'  #'lowpass'     # The type of filter.
     },
     'butter_non_causal': {   # Not valid for real time applications
         'N': 4,                # The order of the filter
@@ -127,11 +133,11 @@ filt_config = {
 filt_config['butter']['Wn'] = filt_config['W']
 #filt_config['butter']['fs'] = record.fs
 
-config_text = ['Load_from_file %s' %load_from_file, 'Filter: %s'%record.apply_filter, 'Detection: %s'%record.detect_method, 'Threhold type: %s'%record.thresh_type, 'Channels: %s' %record.channels, 'Downsampling: %s' %downsample]
-config_text.append('Port %s' %(port))
-config_text.append('Start %s, Dur: %s' %(start,dur))
-config_text.append('Channels: %s' %record.channels)
-config_text.append('filt_config: %s' %json.dumps(filt_config))
+# config_text = ['Load_from_file %s' %load_from_file, 'Filter: %s'%record.apply_filter, 'Detection: %s'%record.detect_method, 'Threhold type: %s'%record.thresh_type, 'Channels: %s' %record.channels, 'Downsampling: %s' %downsample]
+# config_text.append('Port %s' %(port))
+# config_text.append('Start %s, Dur: %s' %(start,dur))
+# config_text.append('Channels: %s' %record.channels)
+# config_text.append('filt_config: %s' %json.dumps(filt_config))
 
 def apploadfile(path=None, map_path=None):
 
@@ -262,18 +268,7 @@ def plotraw(record):
         record.plot_freq_content(record.original,int(plot_ch), nperseg=512, max_freq=5000, ylim=[-500,500], dtformat='%H:%M:%S',
                                 figsize=(10, 10), 
                                 show=True,  cmap=cmap, colorbar_ticks=colorbar_ticks_raw) 
-
-def plotfiltered(record):
-    if load_raw:
-        time_start = time.time()
-
-        # If applied clean_df and have Nan values (clean then filter)
-        if record.recording.name == 'clean':
-            kargs = filt_config[record.apply_filter]
-            kargs['fs'] = record.fs
-            sos = sg.butter(**kargs, output='sos')  # Coefficients for SOS filter
-
-            def apply_butterworth_filter(df, sos, channels):
+def apply_butterworth_filter(df, sos, channels):
                 # Create a copy of the DataFrame to avoid modifying the original data
                 df_filtered = df.copy()
 
@@ -291,14 +286,24 @@ def plotfiltered(record):
 
                 return df_filtered
 
+def plotfiltered(record):
+    if load_raw:
+        time_start = time.time()
+
+        # If applied clean_df and have Nan values (clean then filter)
+        if record.recording.name == 'clean':
+            kargs = filt_config[record.apply_filter]
+            kargs['fs'] = record.fs
+            sos = sg.butter(**kargs, output='sos')  # Coefficients for SOS filter
+
             # Apply the Butterworth filter to the specified channels
             record.filtered = apply_butterworth_filter(record.recording, sos, record.filter_ch)
         else:
             signal2filter = record.original ###record.original #record.recording
-            config_text.append('signal2filter: %s' %signal2filter.name)
+            #config_text.append('signal2filter: %s' %signal2filter.name)
             record.filter(signal2filter, record.apply_filter, **filt_config[record.apply_filter])
             # Change from float64 to float 16
-            record.filtered = convertDfType(record.filtered, typeFloat='float32')
+            record.filtered = convertDfType(record.filtered, typeFloat=pl.Float32)
             #print(record.filtered.dtypes)
         print("Time elapsed: {} seconds".format(time.time()-time_start))
         record.recording=record.filtered
@@ -321,11 +326,34 @@ def plotfiltered(record):
             colorbar_ticks_filt= [5, 0, -50, -100, -150, -200] # in vivo: [5, 0, -50, -100, -150, -200]#, -250] #[-10, -35]  ex vivo: [-50, -100]
         
         #'''
-        record.plot_signal(record.filtered.loc[record.filtered.index[int((start_min-start_min)*60*record.fs)]:record.filtered.index[int((start_min-start_min)*60*record.fs)] + pd.Timedelta(seconds=(10*60))],
-                        plot_ch,record.num_rows,record.num_columns, 
-                        channels=record.channels, text_label=text_label, text_title='Butter signal: intan _channel', ylim=[-100,100],
-                        figsize=(20, 10), no_label=no_label, savefigpath='',
-                        show_plot=True)
+        start_time = record.filtered["time"][0] \
+            + datetime.timedelta(seconds=float((start_min - start_min) * 60))
+
+        # End time (10 minutes later)
+        end_time = start_time + datetime.timedelta(seconds=10 * 60)
+
+        # Filter Polars DataFrame by datetime column
+        df_window = record.filtered.filter(
+            (pl.col("time") >= start_time) & (pl.col("time") <= end_time)
+        )
+        num_rows = len(record.filtered)
+        num_columns = 1
+        # record.plot_signal(
+        #     df_window,
+        #     plot_ch, num_rows, num_columns,
+        #     channels=record.channels, text_label=text_label,
+        #     text_title='Butter signal: intan _channel',
+        #     ylim=[-100,100], figsize=(20, 10),
+        #     no_label=no_label, savefigpath='', show_plot=True
+        # )
+        record.plot_freq_content(
+            record.filtered,
+            int(plot_ch), nperseg=nperseg,
+            max_freq=freq_max, ylim=[-200, 50],
+            dtformat='%H:%M:%S', figsize=(10, 10),
+            show=True, cmap=cmap,
+            colorbar_ticks=colorbar_ticks_filt
+        )
 if __name__ == "__main__":
     rec = apploadfilepolars()
     displayinformation(rec, port, start, dur, downsample, load_from_file, path)
