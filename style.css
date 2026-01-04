@@ -23,6 +23,8 @@ QTabWidget::pane {
 
 /* Base (unselected) tabs */
 QTabBar::tab {
+    height: 124 px; 
+    width: 150px;
     background: #e6e6e6;
     color: #333;
     padding: 10px 14px;
