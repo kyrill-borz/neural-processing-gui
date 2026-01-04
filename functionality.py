@@ -76,8 +76,8 @@ load_from_file = True  # True: pre-saved file vs multiple rhs
 downsample = 1  # Chronic recordings from VN sampled at 20KHz    
 
 # Start and duration in samples (multiply by freq if needed)
-start_min = 0
-dur_min = 40
+start_min = 20
+dur_min = 5
 port = 'Port B'
 
 # Example hardcoded for now
@@ -286,7 +286,7 @@ def apply_butterworth_filter(df, sos, channels):
 
                 return df_filtered
 
-def plotfiltered(record):
+def plotfiltered(record, plot=True):
     if load_raw:
         time_start = time.time()
 
@@ -346,15 +346,122 @@ def plotfiltered(record):
         #     ylim=[-100,100], figsize=(20, 10),
         #     no_label=no_label, savefigpath='', show_plot=True
         # )
-        record.plot_freq_content(
-            record.filtered,
-            int(plot_ch), nperseg=nperseg,
-            max_freq=freq_max, ylim=[-200, 50],
-            dtformat='%H:%M:%S', figsize=(10, 10),
-            show=True, cmap=cmap,
-            colorbar_ticks=colorbar_ticks_filt
+        if plot:
+            record.plot_freq_content(
+                record.filtered,
+                int(plot_ch), nperseg=nperseg,
+                max_freq=freq_max, ylim=[-200, 50],
+                dtformat='%H:%M:%S', figsize=(10, 10),
+                show=True, cmap=cmap,
+                colorbar_ticks=colorbar_ticks_filt
+            )
+
+def referencing(record, ref_ch_name='median', plot=True):
+    signal = record.filtered # original
+
+    if ref_ch_name == 'median':
+        print(ref_ch_name)
+        #all_ch_list = [col for col in record.original.columns if col.startswith('ch_')]
+        all_ch_list = record.filter_ch # [col for col in record.filter_ch if col.startswith('ch_')] # record.filter_ch ['ch_4', 'ch_11', 'ch_20', 'ch_21']
+        ref_ch = signal.select(
+            pl.concat_list(all_ch_list).list.median().alias("ref_median")
         )
+        print (ref_ch)
+        references_df = signal.with_columns(
+            [
+                pl.col(col) - ref_ch["ref_median"]
+                for col in record.filter_ch
+            ]
+        )
+                
+    elif ref_ch_name == 'mean':
+            print(ref_ch_name)
+            #all_ch_list = [col for col in record.original.columns if col.startswith('ch_')]
+            all_ch_list = record.filter_ch# [col for col in record.filter_ch if col.startswith('ch_')] # record.filter_ch ['ch_4', 'ch_11', 'ch_20', 'ch_21']
+            ref_ch = signal.select(
+                pl.concat_list(all_ch_list).list.mean().alias("ref_mean")
+            )
+            print (ref_ch)
+            references_df = signal.with_columns(
+                [
+                    pl.col(col) - ref_ch["ref_mean"]
+                    for col in record.filter_ch
+                ]
+            )
+                
+    elif ref_ch_name == 'weighted_laplacian':
+        wrong_order = record.channels  # The available channels
+        correct_order = [13, 12, 19, 20, 21, 22, 11, 10]  # Full intended order
+
+        # Find the available channels in the correct order
+        available_channels = [ch for ch in correct_order if ch in wrong_order]
+        channel_indices = {ch: i for i, ch in enumerate(correct_order)}  # Map channel to position
+        print("Available channels:", available_channels)
+
+        # Step 2: Apply Weighted Laplacian referencing using all available channels
+        laplacian_references = []
+
+        for ch in available_channels:
+            print(f'Processing channel {ch}...')
+            ch_name = f'ch_{ch}'  # Ensure column names are in the format 'ch_22'
+            
+            # Find the index of the current channel in correct_order
+            current_index = correct_order.index(ch)
+            
+            # Identify all other available channels and their distances
+            neighbors = []
+            distances = []
+            
+            for neighbor in available_channels:
+                if neighbor != ch:  # Avoid self-referencing
+                    neighbors.append(f'ch_{neighbor}')
+                    distances.append(abs(current_index - correct_order.index(neighbor)))  # Compute spatial distance
+            
+            # Compute weights: Closer neighbors get higher weights
+            distances = np.array(distances)
+            weights = 1 / distances  # Inverse of distance
+            weights /= weights.sum()  # Normalize so sum(weights) = 1
+            
+            # Compute weighted reference
+            neighbors_data = signal[neighbors]
+            weighted_ref = (neighbors_data * weights).sum(axis=1)
+            
+            # Apply Laplacian referencing (subtract weighted reference from current channel)
+            laplacian_references.append(signal[ch_name] - weighted_ref)
+
+            # Step 3: Assemble the final DataFrame
+            laplacian_df = pd.DataFrame(np.array(laplacian_references).T, columns=[f'ch_{ch}' for ch in available_channels])
+
+            # Step 4: Keep the same datetime index as the original signal DataFrame
+            laplacian_df.index = signal.index
+
+            # Step 5: Store the Weighted Laplacian-referenced signals
+            references_df = laplacian_df
+
+            # Display the first few rows (optional)
+            print(references_df.head())
+    if plot:
+            print("Plotting referenced data...")
+            nperseg=512
+            no_label = False
+            plot_ch=record.channels[0]
+            cmap = 'gist_ncar' # 'nipy_spectral
+            colorbar_ticks_filt=[20,0,-20,-40]
+            record.plot_freq_content(
+                references_df,
+                int(plot_ch), nperseg=nperseg,
+                max_freq=5000, ylim=[-200, 50],
+                dtformat='%H:%M:%S', figsize=(10, 10),
+                show=True, cmap=cmap,
+                colorbar_ticks=colorbar_ticks_filt
+            )
+
+
 if __name__ == "__main__":
     rec = apploadfilepolars()
     displayinformation(rec, port, start, dur, downsample, load_from_file, path)
-    plotfiltered(rec)
+    signal2filter = rec.original ###record.original #record.recording
+    rec.apply_filter = 'butter_lowpass'
+    #config_text.append('signal2filter: %s' %signal2filter.name)
+    rec.filter(signal2filter, rec.apply_filter, channels=rec.filter_ch, **filt_config[rec.apply_filter])
+    referencing(rec)
