@@ -1,5 +1,5 @@
 .venv
 data
-utils/*
+utils
 .\__pycache__/
 *.pyc
