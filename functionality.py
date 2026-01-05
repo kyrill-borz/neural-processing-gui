@@ -107,12 +107,12 @@ options_threshold = [
 filt_config = {
     'W': [300, 600], #[300, 2000], #[4950], #   [50] lowpass for HR,  [400, 8000], 4950 if fs is 10000 (needs to be <fs/2 per Nyquist)
     'None': {},
-    'butter': {
+    'Butterworth': {
             'N': 4,                # The order of the filter
             'btype': 'bandpass', #'bandpass', #'hp'  #'lowpass'     # The type of filter.
             'fs': 20000,
     },
-    'butter_lowpass': {
+    'Lowpass': {
             'N': 4,                # The order of the filter
             'Wn' : 50,
             'fs': 20000,
@@ -130,7 +130,6 @@ filt_config = {
     },
 }
 
-filt_config['butter']['Wn'] = filt_config['W']
 #filt_config['butter']['fs'] = record.fs
 
 # config_text = ['Load_from_file %s' %load_from_file, 'Filter: %s'%record.apply_filter, 'Detection: %s'%record.detect_method, 'Threhold type: %s'%record.thresh_type, 'Channels: %s' %record.channels, 'Downsampling: %s' %downsample]
@@ -316,7 +315,7 @@ def plotfiltered(record, plot=True):
         plot_ch=record.channels[0]
         text = 'Channels after %s filtering'%record.apply_filter
         
-        if filt_config['butter']['btype'] == 'lowpass':
+        if filt_config['Butterworth']['btype'] == 'lowpass':
             freq_max = filt_config['W'][0]
             textf = 'LF'
             colorbar_ticks_filt=[20,0,-20,-40]
@@ -461,7 +460,7 @@ if __name__ == "__main__":
     rec = apploadfilepolars()
     displayinformation(rec, port, start, dur, downsample, load_from_file, path)
     signal2filter = rec.original ###record.original #record.recording
-    rec.apply_filter = 'butter_lowpass'
+    rec.apply_filter = 'Lowpass'
     #config_text.append('signal2filter: %s' %signal2filter.name)
     rec.filter(signal2filter, rec.apply_filter, channels=rec.filter_ch, **filt_config[rec.apply_filter])
     referencing(rec)
