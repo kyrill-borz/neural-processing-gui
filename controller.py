@@ -6,6 +6,7 @@ class AppController:
     def load_data(self, path):
         from functionality import apploadfilepolars, filt_config
         self.filt_config = filt_config
+        self.filt_config['W'] = [300, 500] 
         self.filt_config['Butterworth']['Wn'] = filt_config['W']
         self.data = apploadfilepolars(path, map_path=r"C:\Users\kyril\Documents\Cambridge\NeuralGui\neural-processing-gui\data\map_linear.csv")
         return self.data
