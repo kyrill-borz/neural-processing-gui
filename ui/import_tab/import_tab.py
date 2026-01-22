@@ -35,10 +35,10 @@ class ImportTab(QWidget):
         self.text = QLabel("Filter Type:")
         self.plot_raw = pg.PlotWidget(title="Raw Signal")
         self.plot_raw.getAxis('bottom').setLabel('Time (s)', color='#2a2a2a')
-        self.plot_raw.getAxis('left').setLabel('Amplitude (mV)', color='#2a2a2a')
+        self.plot_raw.getAxis('left').setLabel('Amplitude (uV)', color='#2a2a2a')
         self.plot_filt = pg.PlotWidget(title="Filtered Signal")
         self.plot_filt.getAxis('bottom').setLabel('Time (s)', color='#2a2a2a')
-        self.plot_filt.getAxis('left').setLabel('Amplitude (mV)', color='#2a2a2a')
+        self.plot_filt.getAxis('left').setLabel('Amplitude (uV)', color='#2a2a2a')
 
         form.addRow("Data Path:", self.pathEdit)
         options_layout.addWidget(self.text, 0, 0)
