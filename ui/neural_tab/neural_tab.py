@@ -50,8 +50,12 @@ class NeuralTab(QWidget):
         layout.addWidget(self.multiAnalysisCombo, 1, 2)
 
 
-        self.plot_before = pg.PlotWidget(title="Before Referencing")
-        self.plot_after = pg.PlotWidget(title="After Referencing")
+        self.plot_before = pg.PlotWidget(title="Before")
+        self.plot_after = pg.PlotWidget(title="After")
+        self.plot_before.getAxis('bottom').setLabel('Time (s)', color='#2a2a2a')
+        self.plot_before.getAxis('left').setLabel('Amplitude (uV)', color='#2a2a2a')
+        self.plot_after.getAxis('bottom').setLabel('Time (s)', color='#2a2a2a')
+        self.plot_after.getAxis('left').setLabel('Amplitude (uV)', color='#2a2a2a')
 
         self.btns = QDialogButtonBox(
             QDialogButtonBox.Ok | QDialogButtonBox.Cancel
@@ -70,7 +74,8 @@ class NeuralTab(QWidget):
         if not data:
             return
         y = data.filtered[data.filter_ch[0]].to_numpy()
-        self.plot_before.plot(y)
+        x = [ x/20000 for x in list(range(len(y))) ]
+        self.plot_before.plot(x,y)
 
     def apply(self):
         method = self.refCombo.currentText()
@@ -78,4 +83,5 @@ class NeuralTab(QWidget):
         y = self.controller.data.referenced[
             self.controller.data.filter_ch[0]
         ].to_numpy()
-        self.plot_after.plot(y)
+        x = [ x/20000 for x in list(range(len(y))) ]
+        self.plot_after.plot(x,y)
