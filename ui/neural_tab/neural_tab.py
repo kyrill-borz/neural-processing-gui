@@ -80,8 +80,9 @@ class NeuralTab(QWidget):
     def apply(self):
         method = self.refCombo.currentText()
         self.controller.apply_referencing(method)
-        y = self.controller.data.referenced[
-            self.controller.data.filter_ch[0]
-        ].to_numpy()
+        ref_df = self.controller.data.referenced
+        first_col = ref_df.columns[0]
+        y = ref_df[first_col].to_numpy()
+        self.plot_after.plot(y)
         x = [ x/20000 for x in list(range(len(y))) ]
         self.plot_after.plot(x,y)
