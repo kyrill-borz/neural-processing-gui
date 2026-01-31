@@ -1,5 +1,7 @@
 import pyqtgraph as pg
+import numpy as np
 from PyQt5.QtWidgets import QWidget, QCheckBox, QGridLayout, QComboBox, QDialogButtonBox
+from ui.analysis.analysis_window import AnalysisWindow
 
 class NeuralTab(QWidget):
     def __init__(self, controller):
@@ -49,6 +51,8 @@ class NeuralTab(QWidget):
         ])
         layout.addWidget(self.multiAnalysisCombo, 1, 2)
 
+        # self.plot_pg2_waveform = pg.PlotWidget(title="Average Spike Waveform")
+        # layout.addWidget(self.plot_pg2_waveform, 4, 0, 1, 3)
 
         self.plot_before = pg.PlotWidget(title="Before")
         self.plot_after = pg.PlotWidget(title="After")
@@ -86,3 +90,54 @@ class NeuralTab(QWidget):
         self.plot_after.plot(y)
         x = [ x/20000 for x in list(range(len(y))) ]
         self.plot_after.plot(x,y)
+        if self.singleChCheck.isChecked():
+            self.apply_single_channel_analysis()
+
+        # if self.multiChCheck.isChecked():
+        #     self.apply_multi_channel_analysis()
+    def update_single_channel_waveform(self):
+        self.plot_pg2_waveform.clear()
+
+        mean = self.single_channel_result["mean_waveform"]
+        std = self.single_channel_result["std_waveform"]
+
+        x = np.arange(len(mean))
+
+        self.plot_pg2_waveform.plot(x, mean, pen="b")
+        self.plot_pg2_waveform.plot(x, mean + 3 * std, pen="r")
+        self.plot_pg2_waveform.plot(x, mean - 3 * std, pen="r")
+
+    def update_single_channel_plots(self):
+        result = self.single_channel_result
+
+        self.plot_pg2_waveform.clear()
+
+        signal = (
+            self.controller.data.referenced
+            .select(result["channel"])
+            .to_numpy()
+            .ravel()
+        )
+
+        self.plot_pg2_waveform.plot(signal, pen="k")
+
+        # Overlay spikes
+        y = signal[result["indices"]]
+        self.plot_pg2_waveform.plot(
+            result["indices"],
+            y,
+            pen=None,
+            symbol="o",
+            symbolSize=4,
+        )
+
+    def apply_single_channel_analysis(self):
+        analysis = self.singleAnalysisCombo.currentText()
+
+        if analysis == "Single Channel Spike Detection":
+            result = self.controller.data.single_channel_spike_analysis_polars(
+                self.controller.data.filter_ch[0]
+            )
+
+            self.analysis_window = AnalysisWindow(result, self)
+            self.analysis_window.show()

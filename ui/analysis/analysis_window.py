@@ -23,7 +23,7 @@ class AnalysisWindow(QMainWindow):
             elif plot_def["kind"] == "hist":
                 y = plot_def["y"]
                 hist, bins = np.histogram(y, bins=50)
-                plot.plot(bins[:-1], hist, stepMode=True)
+                plot.plot(bins, hist, stepMode=True)
 
             layout.addWidget(plot)
 
