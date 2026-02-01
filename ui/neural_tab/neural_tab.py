@@ -87,7 +87,6 @@ class NeuralTab(QWidget):
         ref_df = self.controller.data.referenced
         first_col = ref_df.columns[0]
         y = ref_df[first_col].to_numpy()
-        self.plot_after.plot(y)
         x = [ x/20000 for x in list(range(len(y))) ]
         self.plot_after.plot(x,y)
         if self.singleChCheck.isChecked():
