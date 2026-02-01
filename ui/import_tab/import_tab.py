@@ -70,7 +70,7 @@ class ImportTab(QWidget):
             return
 
         try:
-            data = self.controller.load_data(path)
+            data = self.controller.load_data(path, float(self.startTime.text()), float(self.duration.text()))
         except Exception as e:
             QMessageBox.critical(self, "Load Error", str(e))
             return

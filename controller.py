@@ -3,12 +3,12 @@ class AppController:
         self.data = None
         self.filt_config = None
 
-    def load_data(self, path):
+    def load_data(self, path, start_min=0, dur_min=10):
         from functionality import apploadfilepolars, filt_config
         self.filt_config = filt_config
         self.filt_config['W'] = [300, 500] 
         self.filt_config['Butterworth']['Wn'] = filt_config['W']
-        self.data = apploadfilepolars(path, map_path=r"C:\Users\kyril\Documents\Cambridge\NeuralGui\neural-processing-gui\data\map_linear.csv")
+        self.data = apploadfilepolars(start_min, dur_min, path, map_path=r"C:\Users\kyril\Documents\Cambridge\NeuralGui\neural-processing-gui\data\map_linear.csv")
         return self.data
 
     def apply_filter(self, filter_type='Butterworth'):

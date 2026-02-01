@@ -173,7 +173,10 @@ def apploadfile(path=None, map_path=None):
     print("Time elapsed in loading: {} seconds".format(time.time()-time_start)) 
     return record
 
-def apploadfilepolars(path=None, map_path=None):
+def apploadfilepolars(start_min, dur_min, path=None, map_path=None):
+    fs = 20000
+    start = fs * 60 * start_min
+    dur = None if dur_min == 0 else fs * 60 * dur_min
     if load_raw:
         # Load using your custom Recording class
         record = Recording.open_record(
