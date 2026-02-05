@@ -199,6 +199,7 @@ def apploadfilepolars(start_min, dur_min, path=None, map_path=None):
             filetypes=[
                 ("Pickle Files", "*.pkl"),
                 ("Parquet Files", "*.parquet"),
+                ("RHS Files", "*.rhs"),
                 ("All Files", "*.*")
             ]
         )
