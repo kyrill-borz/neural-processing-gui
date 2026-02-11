@@ -107,6 +107,7 @@ options_threshold = [
 filt_config = {
     'W': [300, 600], #[300, 2000], #[4950], #   [50] lowpass for HR,  [400, 8000], 4950 if fs is 10000 (needs to be <fs/2 per Nyquist)
     'None': {},
+    'Automatic': {},  # Will be determined by the adaptive filter function
     'Butterworth': {
             'N': 4,                # The order of the filter
             'btype': 'bandpass', #'bandpass', #'hp'  #'lowpass'     # The type of filter.
