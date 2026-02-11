@@ -5,7 +5,7 @@ from PyQt5.QtWidgets import (
     QFileDialog, QMessageBox, QGridLayout, QComboBox, QLabel
 )
 from ui.widgets.CollapsibleBox import CollapsibleBox
-
+import numpy as np
 class ImportTab(QWidget):
     def __init__(self, controller):
         super().__init__()
@@ -33,12 +33,19 @@ class ImportTab(QWidget):
             "Automatic"
         ])
         self.text = QLabel("Filter Type:")
-        self.plot_raw = pg.PlotWidget(title="Raw Signal")
-        self.plot_raw.getAxis('bottom').setLabel('Time (s)', color='#2a2a2a')
-        self.plot_raw.getAxis('left').setLabel('Amplitude (uV)', color='#2a2a2a')
-        self.plot_filt = pg.PlotWidget(title="Filtered Signal")
-        self.plot_filt.getAxis('bottom').setLabel('Time (s)', color='#2a2a2a')
-        self.plot_filt.getAxis('left').setLabel('Amplitude (uV)', color='#2a2a2a')
+        self.plot_raw_signal = pg.PlotWidget(title="Raw Signal")
+        self.plot_raw_signal.getAxis('bottom').setLabel('Time (s)', color='#2a2a2a')
+        self.plot_raw_signal.getAxis('left').setLabel('Amplitude (uV)', color='#2a2a2a')
+        self.plot_raw_spectrum = pg.PlotWidget(title="Raw Signal Spectrum")
+        self.plot_raw_spectrum.getAxis('bottom').setLabel('Frequency (Hz)', color='#2a2a2a')
+        self.plot_raw_spectrum.getAxis('left').setLabel('PSD (dB/Hz)', color='#2a2a2a')
+
+        self.plot_filt_signal = pg.PlotWidget(title="Filtered Signal")
+        self.plot_filt_signal.getAxis('bottom').setLabel('Time (s)', color='#2a2a2a')
+        self.plot_filt_signal.getAxis('left').setLabel('Amplitude (uV)', color='#2a2a2a')
+        self.plot_filt_spectrum = pg.PlotWidget(title="Filtered Signal Spectrum")
+        self.plot_filt_spectrum.getAxis('bottom').setLabel('Frequency (Hz)', color='#2a2a2a')
+        self.plot_filt_spectrum.getAxis('left').setLabel('PSD (dB/Hz)', color='#2a2a2a')
 
         form.addRow("Data Path:", self.pathEdit)
         options_layout.addWidget(self.text, 0, 0)
@@ -50,9 +57,12 @@ class ImportTab(QWidget):
         options_layout.addWidget(self.duration, 1, 3)
         options_box.setContentLayout(options_layout)
         form.addRow(options_box)
-        
-        form.addRow(self.plot_raw)
-        form.addRow(self.plot_filt)
+        graph_layout = QGridLayout()
+        graph_layout.addWidget(self.plot_raw_signal, 0, 0)
+        graph_layout.addWidget(self.plot_raw_spectrum, 1, 0)
+        graph_layout.addWidget(self.plot_filt_signal, 0, 1)
+        graph_layout.addWidget(self.plot_filt_spectrum, 1, 1)
+        form.addRow(graph_layout)
 
         self.btns = QDialogButtonBox(
             QDialogButtonBox.Ok | QDialogButtonBox.Cancel
@@ -78,14 +88,61 @@ class ImportTab(QWidget):
         self.pathEdit.setText(path)
         y = data.original["ch_27"].to_numpy()
         x = [ x/20000 for x in list(range(len(y))) ]
-        self.plot_raw.plot(x,y)
+        self.plot_raw_signal.plot(x,y)
+        print(y)
+        freq_data = self.controller.data.compute_frequency_content(
+                signal_1d=y,
+                fs=self.controller.data.fs,
+            )
+        self.plot_psd(self.plot_raw_spectrum, freq_data)
+
 
         if self.filterType.currentText() != "No filter":
             self.controller.apply_filter(self.filterType.currentText())
             y_f = data.filtered["ch_27"].to_numpy()
-            self.plot_filt.plot(x, y_f)
-
+            self.plot_filt_signal.plot(x, y_f)
+            freq_data = self.controller.data.compute_frequency_content(
+                signal_1d=y_f,
+                fs=self.controller.data.fs
+                )
+            self.plot_psd(self.plot_filt_spectrum, freq_data)
     def clear(self):
-        self.plot_raw.clear()
-        self.plot_filt.clear()
+        self.plot_raw_signal.clear()
+        self.plot_raw_spectrum.clear()
+        self.plot_filt_signal.clear()
+        self.plot_filt_spectrum.clear()
         self.pathEdit.clear()
+    
+    def plot_psd(self, plot, freq_data: dict):
+        """
+        Plot Welch PSD in self.plot_raw_spectrum (PlotWidget).
+        """
+        # --- Clear previous content ---
+        plot.clear()
+
+        freqs = freq_data["psd_freqs"]
+        psd = freq_data["psd"]
+
+        # Convert PSD to dB for consistency with matplotlib
+        psd_db = 10 * np.log10(psd + np.finfo(float).eps)
+
+        # --- Plot ---
+        plot.plot(
+            freqs,
+            psd_db,
+            pen=pg.mkPen(color=(50, 150, 255), width=2),
+        )
+
+        # --- Axes & labels ---
+        plot.setLabel("left", "PSD (dB/Hz)")
+        plot.setLabel("bottom", "Frequency (Hz)")
+        plot.setTitle("Power Spectral Density (Welch)")
+
+        # --- Log frequency axis (recommended for neural data) ---
+        plot.setLogMode(x=True, y=False)
+
+        # --- Grid ---
+        plot.showGrid(x=True, y=True, alpha=0.3)
+
+        # --- Auto-range once ---
+        plot.enableAutoRange(axis=pg.ViewBox.XYAxes, enable=True)
