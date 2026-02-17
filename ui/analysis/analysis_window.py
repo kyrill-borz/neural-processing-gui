@@ -1,4 +1,5 @@
-from PyQt5.QtWidgets import QMainWindow, QWidget, QVBoxLayout
+from PyQt5.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QLabel
+from PyQt5.QtCore import Qt, QRectF
 import pyqtgraph as pg
 import numpy as np
 
@@ -13,18 +14,64 @@ class AnalysisWindow(QMainWindow):
         central = QWidget()
         layout = QVBoxLayout(central)
 
-        for plot_def in result["plots"]:
-            plot = pg.PlotWidget(title=plot_def["title"])
+        for item in result["plots"]:
 
-            if plot_def["kind"] == "line":
-                plot.plot(plot_def["x"], plot_def["y"])
-            elif plot_def["kind"] == "scatter":
-                plot.plot(plot_def["x"], plot_def["y"], pen=None, symbol="o")
-            elif plot_def["kind"] == "hist":
-                y = plot_def["y"]
-                hist, bins = np.histogram(y, bins=50)
-                plot.plot(bins, hist, stepMode=True)
+            # ---------- TEXT ----------
+            if item["kind"] == "text":
+                label = QLabel(item["content"])
+                layout.addWidget(label)
+                continue
 
-            layout.addWidget(plot)
+            # ---------- STANDARD PLOT ----------
+            if item["kind"] in ["line", "scatter", "hist"]:
+                plot = pg.PlotWidget(title=item.get("title", ""))
+
+                if item["kind"] == "line":
+                    plot.plot(item["x"], item["y"])
+
+                elif item["kind"] == "scatter":
+                    plot.plot(
+                        item["x"],
+                        item["y"],
+                        pen=None,
+                        symbol="o"
+                    )
+
+                elif item["kind"] == "hist":
+                    y = item["y"]
+                    hist, bins = np.histogram(y, bins=item.get("bins", 50))
+                    plot.plot(bins, hist, stepMode=True)
+
+                layout.addWidget(plot)
+                continue
+
+            # ---------- IMAGE (HEATMAP / SPECTROGRAM / ISI) ----------
+            if item["kind"] == "image":
+                graphics = pg.GraphicsLayoutWidget()
+                plot = graphics.addPlot(title=item.get("title", ""))
+
+                img = pg.ImageItem(item["z"])
+                plot.addItem(img)
+
+                # Axis scaling (optional)
+                if "x" in item and "y" in item:
+                    x = item["x"]
+                    y = item["y"]
+
+                    if len(x) > 1 and len(y) > 1:
+                        img.setRect(
+                            QRectF(
+                                x[0],
+                                y[0],
+                                x[-1] - x[0],
+                                y[-1] - y[0],
+                            )
+                        )
+
+                plot.setLabel("left", item.get("ylabel", ""))
+                plot.setLabel("bottom", item.get("xlabel", ""))
+
+                layout.addWidget(graphics)
+                continue
 
         self.setCentralWidget(central)
