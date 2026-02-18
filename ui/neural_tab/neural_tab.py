@@ -90,7 +90,7 @@ class NeuralTab(QWidget):
         x = [ x/20000 for x in list(range(len(y))) ]
         self.plot_after.plot(x,y)
         if self.singleChCheck.isChecked():
-            self.apply_single_channel_analysis()
+            self.apply_single_channel_analysis(self.controller.data.filter_ch[4])
 
         # if self.multiChCheck.isChecked():
         #     self.apply_multi_channel_analysis()
@@ -130,45 +130,156 @@ class NeuralTab(QWidget):
             symbolSize=4,
         )
 
-    def apply_single_channel_analysis(self):
+    def get_spike_data(self, channel: str):
+        """
+        Returns spike analysis result for a channel.
+        Computes it if not already cached.
+        """
+
+        if not hasattr(self, "_spike_cache"):
+            self._spike_cache = {}
+
+        if channel in self._spike_cache:
+            return self._spike_cache[channel]
+
+        # Compute and cache
+        spike_result = self.controller.data.single_channel_spike_analysis_polars(
+            channel=channel,
+            extract_waveforms=True,
+        )
+
+        self._spike_cache[channel] = spike_result
+
+        return spike_result
+
+    def apply_single_channel_analysis(self, channel: str):
         analysis = self.singleAnalysisCombo.currentText()
 
         if analysis == "Single Channel Spike Detection":
-            result = self.controller.data.single_channel_spike_analysis_polars(
-                self.controller.data.filter_ch[4]
-            )
+            channel = self.controller.data.filter_ch[0]
+            spike_data = self.get_spike_data(channel)
+              # Assuming first filtered channel    
+            # No spikes case
+            if spike_data["indices"] is None or len(spike_data["indices"]) == 0:
+                payload = {
+                    "title": f"Spike Analysis – {channel}",
+                    "plots": [
+                        {
+                            "kind": "text",
+                            "content": "No spikes detected for this channel."
+                        }
+                    ]
+                }
+            else:
+                payload = {
+                    "title": f"Spike Analysis – {channel}",
+                    "plots": [
+                        {
+                            "title": "Detected Spikes",
+                            "x": spike_data["times"],
+                            "y": spike_data["peaks"],
+                            "kind": "scatter",
+                        }
+                    ]
+                }
 
-            self.analysis_window = AnalysisWindow(result, self)
+                # Add waveform if available
+                if spike_data["mean_waveform"] is not None:
+                    payload["plots"].append({
+                        "title": "Average Spike Waveform",
+                        "x": np.arange(len(spike_data["mean_waveform"])),
+                        "y": spike_data["mean_waveform"],
+                        "kind": "line",
+                    })
+
+                # Add ISI if available
+                if spike_data["isi_ms"] is not None:
+                    payload["plots"].append({
+                        "title": "ISI Histogram",
+                        "y": spike_data["isi_ms"],
+                        "kind": "hist",
+                    })
+
+            self.analysis_window = AnalysisWindow(payload, self)
             self.analysis_window.show()
         if analysis == "ISI Distribution":
-            spike_data = self.controller.data.detect_spikes_single_channel_polars(
-                self.controller.data.filter_ch[4]
-            )
+                channel = self.controller.data.filter_ch[4]
+                spike_data = self.get_spike_data(channel)
+                spike_times = spike_data["times"].to_numpy()
+                isi_result = self.controller.data.compute_isi_distribution_over_time(
+                    spike_times_ms=spike_times
+                )
+
+                analysis_payload = {
+                    "title": "ISI Distribution Over Time",
+                    "plots": [
+                        {
+                            "kind": "image",
+                            "title": "ISI Heatmap",
+                            "z": isi_result["isi_matrix"].T,
+                            "x": isi_result["window_centers_sec"],
+                            "y": isi_result["isi_bins_ms"],
+                            "xlabel": "Time (s)",
+                            "ylabel": "ISI (ms)",
+                        },
+                        {
+                            "kind": "text",
+                            "content": (
+                                f"KS Statistic: {isi_result['ks_stat']:.4f}\n"
+                                f"p-value: {isi_result['ks_p']:.4f}"
+                            )
+                        }
+                    ]
+                }
+
+                self.analysis_window = AnalysisWindow(analysis_payload, self)
+                self.analysis_window.show()
+            
+        if analysis == "Clustering of Spikes":
+            spike_data = self.get_spike_data(self.controller.data.filter_ch[4])
             spike_times = spike_data["times"].to_numpy()
-            isi_result = self.controller.data.compute_isi_distribution_over_time(
-                spike_times_ms=spike_times
+            spike_waveforms = spike_data["waveforms"]
+
+            clustering_result = self.controller.data.cluster_spike_waveforms(
+                waveforms=spike_waveforms,
+                spike_times_sec=spike_times
             )
+            plots = []
+
+            for i, mean_wf in enumerate(clustering_result["cluster_means"]):
+                if mean_wf is None:
+                    continue
+
+                plots.append({
+                    "kind": "line",
+                    "title": f"Cluster {i} Mean Waveform",
+                    "x": np.arange(len(mean_wf)),
+                    "y": mean_wf,
+                })
+            for i, isi in enumerate(clustering_result["cluster_isi"]):
+                if len(isi) == 0:
+                    continue
+
+                plots.append({
+                    "kind": "hist",
+                    "title": f"Cluster {i} ISI",
+                    "y": isi,
+                    "bins": 50
+                })
+
+            features = clustering_result["features"]
+            labels = clustering_result["labels"]
+
+            plots.append({
+                "kind": "scatter",
+                "title": "Feature Space (Peak-to-Peak vs Energy)",
+                "x": features[:, 0],
+                "y": features[:, 1],
+            })
 
             analysis_payload = {
-                "title": "ISI Distribution Over Time",
-                "plots": [
-                    {
-                        "kind": "image",
-                        "title": "ISI Heatmap",
-                        "z": isi_result["isi_matrix"].T,
-                        "x": isi_result["window_centers_sec"],
-                        "y": isi_result["isi_bins_ms"],
-                        "xlabel": "Time (s)",
-                        "ylabel": "ISI (ms)",
-                    },
-                    {
-                        "kind": "text",
-                        "content": (
-                            f"KS Statistic: {isi_result['ks_stat']:.4f}\n"
-                            f"p-value: {isi_result['ks_p']:.4f}"
-                        )
-                    }
-                ]
+                "title": "Spike Clustering Results",
+                "plots": plots
             }
 
             self.analysis_window = AnalysisWindow(analysis_payload, self)
