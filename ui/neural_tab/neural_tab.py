@@ -135,14 +135,14 @@ class NeuralTab(QWidget):
 
         if analysis == "Single Channel Spike Detection":
             result = self.controller.data.single_channel_spike_analysis_polars(
-                self.controller.data.filter_ch[0]
+                self.controller.data.filter_ch[4]
             )
 
             self.analysis_window = AnalysisWindow(result, self)
             self.analysis_window.show()
         if analysis == "ISI Distribution":
             spike_data = self.controller.data.detect_spikes_single_channel_polars(
-                self.controller.data.filter_ch[0]
+                self.controller.data.filter_ch[4]
             )
             spike_times = spike_data["times"].to_numpy()
             isi_result = self.controller.data.compute_isi_distribution_over_time(
