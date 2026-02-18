@@ -140,3 +140,36 @@ class NeuralTab(QWidget):
 
             self.analysis_window = AnalysisWindow(result, self)
             self.analysis_window.show()
+        if analysis == "ISI Distribution":
+            spike_data = self.controller.data.detect_spikes_single_channel_polars(
+                self.controller.data.filter_ch[0]
+            )
+            spike_times = spike_data["times"].to_numpy()
+            isi_result = self.controller.data.compute_isi_distribution_over_time(
+                spike_times_ms=spike_times
+            )
+
+            analysis_payload = {
+                "title": "ISI Distribution Over Time",
+                "plots": [
+                    {
+                        "kind": "image",
+                        "title": "ISI Heatmap",
+                        "z": isi_result["isi_matrix"].T,
+                        "x": isi_result["window_centers_sec"],
+                        "y": isi_result["isi_bins_ms"],
+                        "xlabel": "Time (s)",
+                        "ylabel": "ISI (ms)",
+                    },
+                    {
+                        "kind": "text",
+                        "content": (
+                            f"KS Statistic: {isi_result['ks_stat']:.4f}\n"
+                            f"p-value: {isi_result['ks_p']:.4f}"
+                        )
+                    }
+                ]
+            }
+
+            self.analysis_window = AnalysisWindow(analysis_payload, self)
+            self.analysis_window.show()
