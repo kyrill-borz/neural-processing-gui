@@ -175,7 +175,6 @@ def apploadfile(path=None, map_path=None):
     return record
 
 def apploadfilepolars(start_min, dur_min, path=None, map_path=None):
-    print("functionality.py")
     fs = 20000
     start = fs * 60 * start_min
     dur = None if dur_min == 0 else fs * 60 * dur_min
