@@ -87,8 +87,8 @@ class ImportTab(QWidget):
 
         self.pathEdit.setText(path)
         y = data.original["ch_27"].to_numpy()
-        x = [ x/20000 for x in list(range(len(y))) ]
-        self.plot_raw_signal.plot(x,y)
+        self.plot_raw_signal.plot(y)
+        self.plot_raw_signal.getAxis('bottom').setScale(1/20000)
         print(y)
         freq_data = self.controller.data.compute_frequency_content(
                 signal_1d=y,
@@ -100,7 +100,8 @@ class ImportTab(QWidget):
         if self.filterType.currentText() != "No filter":
             self.controller.apply_filter(self.filterType.currentText())
             y_f = data.filtered["ch_27"].to_numpy()
-            self.plot_filt_signal.plot(x, y_f)
+            self.plot_filt_signal.plot(y_f)
+            self.plot_filt_signal.getAxis('bottom').setScale(1/20000)
             freq_data = self.controller.data.compute_frequency_content(
                 signal_1d=y_f,
                 fs=self.controller.data.fs

@@ -78,8 +78,8 @@ class NeuralTab(QWidget):
         if not data:
             return
         y = data.filtered[data.filter_ch[0]].to_numpy()
-        x = [ x/20000 for x in list(range(len(y))) ]
-        self.plot_before.plot(x,y)
+        self.plot_before.plot(y)
+        self.plot_before.getAxis('bottom').setScale(1/20000)
 
     def apply(self):
         method = self.refCombo.currentText()
@@ -87,8 +87,8 @@ class NeuralTab(QWidget):
         ref_df = self.controller.data.referenced
         first_col = ref_df.columns[0]
         y = ref_df[first_col].to_numpy()
-        x = [ x/20000 for x in list(range(len(y))) ]
-        self.plot_after.plot(x,y)
+        self.plot_after.plot(y)
+        self.plot_after.getAxis('bottom').setScale(1/20000)
         if self.singleChCheck.isChecked():
             self.apply_single_channel_analysis(self.controller.data.filter_ch[4])
 
