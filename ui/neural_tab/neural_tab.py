@@ -8,6 +8,7 @@ class NeuralTab(QWidget):
         super().__init__()
         self.controller = controller
         self._build_ui()
+        self._last_ref_method = None
 
     def _build_ui(self):
         layout = QGridLayout(self)
@@ -77,13 +78,32 @@ class NeuralTab(QWidget):
         data = self.controller.data
         if not data:
             return
-        y = data.filtered[data.filter_ch[0]].to_numpy()
+        print("previewing referencing method:", self.refCombo.currentText())
+        fs = 20000
+        max_points = 200000   # generous upper bound
+
+        series = data.filtered[data.filter_ch[0]]
+
+        length = len(series)
+
+        if length > max_points:
+            step = length // max_points
+            y = series.to_numpy()[::step]
+        else:
+            y = series.to_numpy()
+
+        self.plot_before.clear()
         self.plot_before.plot(y)
-        self.plot_before.getAxis('bottom').setScale(1/20000)
+        self.plot_before.getAxis('bottom').setScale(step / fs if length > max_points else 1/fs)
 
     def apply(self):
         method = self.refCombo.currentText()
-        self.controller.apply_referencing(method)
+
+        if method != self._last_ref_method:
+            print("starting referencing")
+            self.controller.apply_referencing(method)
+            self._last_ref_method = method
+
         ref_df = self.controller.data.referenced
         first_col = ref_df.columns[0]
         y = ref_df[first_col].to_numpy()
@@ -157,6 +177,7 @@ class NeuralTab(QWidget):
 
         if analysis == "Single Channel Spike Detection":
             channel = self.controller.data.filter_ch[0]
+            print("getting spike data")
             spike_data = self.get_spike_data(channel)
               # Assuming first filtered channel    
             # No spikes case
