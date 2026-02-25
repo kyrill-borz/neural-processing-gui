@@ -1,8 +1,8 @@
 import pyqtgraph as pg
 import numpy as np
-from PyQt5.QtWidgets import QWidget, QCheckBox, QGridLayout, QComboBox, QDialogButtonBox
+from PyQt5.QtWidgets import QVBoxLayout, QWidget, QCheckBox, QGridLayout, QComboBox, QDialogButtonBox, QPushButton, QScrollArea
 from ui.analysis.analysis_window import AnalysisWindow
-
+from ui.neural_tab.channel_display_window import ChannelDisplayWindow
 class NeuralTab(QWidget):
     def __init__(self, controller):
         super().__init__()
@@ -13,7 +13,7 @@ class NeuralTab(QWidget):
     def _build_ui(self):
         layout = QGridLayout(self)
 
-        self.dropBadChCheck = QCheckBox("Drop Bad Channels")
+        self.dropBadChCheck = QPushButton("Select Channels")
         self.singleChCheck = QCheckBox("Single Channel Analysis")
         self.multiChCheck = QCheckBox("Multiple Channel Analysis")
 
@@ -55,49 +55,32 @@ class NeuralTab(QWidget):
         # self.plot_pg2_waveform = pg.PlotWidget(title="Average Spike Waveform")
         # layout.addWidget(self.plot_pg2_waveform, 4, 0, 1, 3)
 
-        self.plot_before = pg.PlotWidget(title="Before")
-        self.plot_after = pg.PlotWidget(title="After")
-        self.plot_before.getAxis('bottom').setLabel('Time (s)', color='#2a2a2a')
-        self.plot_before.getAxis('left').setLabel('Amplitude (uV)', color='#2a2a2a')
-        self.plot_after.getAxis('bottom').setLabel('Time (s)', color='#2a2a2a')
-        self.plot_after.getAxis('left').setLabel('Amplitude (uV)', color='#2a2a2a')
+        self.scroll = QScrollArea()
+        self.scroll.setWidgetResizable(True)
+
+        self.plot_container = QWidget()
+        self.plot_layout = QVBoxLayout(self.plot_container)
+
+        self.scroll.setWidget(self.plot_container)
+
+        layout.addWidget(self.scroll, 2, 0, 2, 3)
 
         self.btns = QDialogButtonBox(
             QDialogButtonBox.Ok | QDialogButtonBox.Cancel
         )
 
         layout.addWidget(self.refCombo, 0, 0)
-        layout.addWidget(self.plot_before, 2, 0, 1, 3)
-        layout.addWidget(self.plot_after, 3, 0, 1, 3)
         layout.addWidget(self.btns, 4, 2)
 
-        self.refCombo.currentTextChanged.connect(self.preview)
         self.btns.accepted.connect(self.apply)
-
-    def preview(self):
-        data = self.controller.data
-        if not data:
-            return
-        print("previewing referencing method:", self.refCombo.currentText())
-        fs = 20000
-        max_points = 200000   # generous upper bound
-
-        series = data.filtered[data.filter_ch[0]]
-
-        length = len(series)
-
-        if length > max_points:
-            step = length // max_points
-            y = series.to_numpy()[::step]
-        else:
-            y = series.to_numpy()
-
-        self.plot_before.clear()
-        self.plot_before.plot(y)
-        self.plot_before.getAxis('bottom').setScale(step / fs if length > max_points else 1/fs)
+        self.dropBadChCheck.clicked.connect(self.handleChannelDisplayButton)
 
     def apply(self):
+        print(self.controller.data.channels)
         method = self.refCombo.currentText()
+
+        if method == "Select Referencing Method":
+            return
 
         if method != self._last_ref_method:
             print("starting referencing")
@@ -105,15 +88,58 @@ class NeuralTab(QWidget):
             self._last_ref_method = method
 
         ref_df = self.controller.data.referenced
-        first_col = ref_df.columns[0]
-        y = ref_df[first_col].to_numpy()
-        self.plot_after.plot(y)
-        self.plot_after.getAxis('bottom').setScale(1/20000)
+
+        self.display_referenced_channels(ref_df)
+
         if self.singleChCheck.isChecked():
             self.apply_single_channel_analysis(self.controller.data.filter_ch[4])
 
         # if self.multiChCheck.isChecked():
         #     self.apply_multi_channel_analysis()
+    
+    def display_referenced_channels(self, ref_df):
+        fs = 20000
+        max_points = 200000
+
+        # Clear old plots
+        while self.plot_layout.count():
+            item = self.plot_layout.takeAt(0)
+            widget = item.widget()
+            if widget:
+                widget.deleteLater()
+
+        selected_channels = getattr(self.controller.data, "channels", [])
+
+        for ch in selected_channels:
+
+            if ch not in ref_df.columns:
+                continue
+
+            series = ref_df[ch]
+            length = len(series)
+
+            if length > max_points:
+                step = length // max_points
+                series = series.gather_every(step)
+            else:
+                step = 1
+
+            y = series.to_numpy()
+
+            plot = pg.PlotWidget(title=ch)
+            plot.setFixedHeight(150)
+
+            curve = plot.plot(y)
+            curve.setDownsampling(auto=True, method="peak")
+            curve.setClipToView(True)
+
+            plot.getAxis("bottom").setScale(step / fs)
+            plot.getAxis("bottom").setLabel("Time (s)")
+            plot.getAxis("left").setLabel("Amplitude (uV)")
+
+            self.plot_layout.addWidget(plot)
+
+        self.plot_layout.addStretch()
     def update_single_channel_waveform(self):
         self.plot_pg2_waveform.clear()
 
@@ -305,3 +331,7 @@ class NeuralTab(QWidget):
 
             self.analysis_window = AnalysisWindow(analysis_payload, self)
             self.analysis_window.show()
+    
+    def handleChannelDisplayButton(self):
+        self.channel_window = ChannelDisplayWindow(self.controller)
+        self.channel_window.show()
