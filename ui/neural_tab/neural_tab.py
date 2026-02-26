@@ -1,8 +1,9 @@
 import pyqtgraph as pg
 import numpy as np
-from PyQt5.QtWidgets import QVBoxLayout, QWidget, QCheckBox, QGridLayout, QComboBox, QDialogButtonBox, QPushButton, QScrollArea
+from PyQt5.QtWidgets import QDialog, QVBoxLayout, QWidget, QCheckBox, QGridLayout, QComboBox, QDialogButtonBox, QPushButton, QScrollArea
 from ui.analysis.analysis_window import AnalysisWindow
 from ui.neural_tab.channel_display_window import ChannelDisplayWindow
+from ui.widgets.FunctionPopup import ParameterDialog
 class NeuralTab(QWidget):
     def __init__(self, controller):
         super().__init__()
@@ -97,7 +98,8 @@ class NeuralTab(QWidget):
         # if self.multiChCheck.isChecked():
         #     self.apply_multi_channel_analysis()
     
-    def display_referenced_channels(self, ref_df):
+    def display_referenced_channels(self, df):
+
         fs = 20000
         max_points = 200000
 
@@ -110,12 +112,14 @@ class NeuralTab(QWidget):
 
         selected_channels = getattr(self.controller.data, "channels", [])
 
-        for ch in selected_channels:
+        master_plot = None  # first plot becomes x-axis master
 
-            if ch not in ref_df.columns:
+        for idx, ch in enumerate(selected_channels):
+
+            if ch not in df.columns:
                 continue
 
-            series = ref_df[ch]
+            series = df[ch]
             length = len(series)
 
             if length > max_points:
@@ -127,7 +131,7 @@ class NeuralTab(QWidget):
             y = series.to_numpy()
 
             plot = pg.PlotWidget(title=ch)
-            plot.setFixedHeight(150)
+            plot.setFixedHeight(140)
 
             curve = plot.plot(y)
             curve.setDownsampling(auto=True, method="peak")
@@ -136,6 +140,12 @@ class NeuralTab(QWidget):
             plot.getAxis("bottom").setScale(step / fs)
             plot.getAxis("bottom").setLabel("Time (s)")
             plot.getAxis("left").setLabel("Amplitude (uV)")
+
+            # Link x-axis
+            if master_plot is None:
+                master_plot = plot
+            else:
+                plot.setXLink(master_plot)
 
             self.plot_layout.addWidget(plot)
 
@@ -176,7 +186,7 @@ class NeuralTab(QWidget):
             symbolSize=4,
         )
 
-    def get_spike_data(self, channel: str):
+    def get_spike_data(self, channel: str, height_std=4.5, window_ms=2):
         """
         Returns spike analysis result for a channel.
         Computes it if not already cached.
@@ -192,6 +202,8 @@ class NeuralTab(QWidget):
         spike_result = self.controller.data.single_channel_spike_analysis_polars(
             channel=channel,
             extract_waveforms=True,
+            height_std=height_std,
+            min_distance_ms=window_ms,
         )
 
         self._spike_cache[channel] = spike_result
@@ -202,10 +214,48 @@ class NeuralTab(QWidget):
         analysis = self.singleAnalysisCombo.currentText()
 
         if analysis == "Single Channel Spike Detection":
-            channel = self.controller.data.filter_ch[0]
+            param_spec = {
+                "channel": {
+                    "type": "choice",
+                    "options": self.controller.data.filter_ch,
+                    "label": "Channel",
+                    "default": self.controller.data.filter_ch[0] if self.controller.data.filter_ch else None,
+                },
+                "threshold_std": {
+                    "type": "float",
+                    "label": "Spike Threshold (std)",
+                    "default": 4.5,
+                    "min": 0,
+                    "max": 20,
+                    "step": 0.1,
+                },
+                "window_ms": {
+                    "type": "int",
+                    "label": "Waveform Window (ms)",
+                    "default": 2,
+                    "min": 1,
+                    "max": 10,
+                },
+                # "polarity": {
+                #     "type": "choice",
+                #     "label": "Polarity",
+                #     "options": ["negative", "positive", "both"],
+                #     "default": "negative",
+                # },
+            }
+
+            dialog = ParameterDialog(param_spec, parent=self)
+
+            if dialog.exec_() != QDialog.Accepted:
+                return  # User cancelled
+
+            params = dialog.get_values()
             print("getting spike data")
-            spike_data = self.get_spike_data(channel)
-              # Assuming first filtered channel    
+            spike_data = self.get_spike_data(
+                channel=params["channel"],
+                height_std=params["threshold_std"],
+                window_ms=params["window_ms"]
+            )
             # No spikes case
             if spike_data["indices"] is None or len(spike_data["indices"]) == 0:
                 payload = {
