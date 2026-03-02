@@ -195,8 +195,8 @@ class NeuralTab(QWidget):
         if not hasattr(self, "_spike_cache"):
             self._spike_cache = {}
 
-        if channel in self._spike_cache:
-            return self._spike_cache[channel]
+        if channel in self._spike_cache and self._spike_cache[channel]["height_std"] == height_std and self._spike_cache[channel]["window_ms"] == window_ms:
+            return self._spike_cache[channel]["data"]
 
         # Compute and cache
         spike_result = self.controller.data.single_channel_spike_analysis_polars(
@@ -206,7 +206,11 @@ class NeuralTab(QWidget):
             min_distance_ms=window_ms,
         )
 
-        self._spike_cache[channel] = spike_result
+        self._spike_cache[channel] = {
+            "data": spike_result,
+            "height_std": height_std,
+            "window_ms": window_ms
+        }
 
         return spike_result
 
@@ -300,11 +304,60 @@ class NeuralTab(QWidget):
             self.analysis_window = AnalysisWindow(payload, self)
             self.analysis_window.show()
         if analysis == "ISI Distribution":
-                channel = self.controller.data.filter_ch[4]
-                spike_data = self.get_spike_data(channel)
+                param_spec = {
+                    "channel": {
+                        "type": "choice",
+                        "options": self.controller.data.filter_ch,
+                        "label": "Channel",
+                        "default": self.controller.data.filter_ch[0] if self.controller.data.filter_ch else None,
+                    },
+                    "threshold_std": {
+                        "type": "float",
+                        "label": "Spike Threshold (std)",
+                        "default": 4.5,
+                        "min": 0,
+                        "max": 20,
+                        "step": 0.1,
+                    },
+                    "window_ms": {
+                        "type": "int",
+                        "label": "Waveform Window (ms)",
+                        "default": 2,
+                        "min": 1,
+                        "max": 10,
+                    },
+                    "isi_bins_ms": {
+                        "type": "int",
+                        "label": "ISI Bin Size (ms)",
+                        "default": 10,
+                        "min": 1,
+                        "max": 100,
+                    },
+                    "window_size_sec": {
+                        "type": "int",
+                        "label": "Time Window Size (s)",
+                        "default": 60,
+                        "min": 10,
+                        "max": 600,
+                    },
+                }
+
+                dialog = ParameterDialog(param_spec, parent=self)
+
+                if dialog.exec_() != QDialog.Accepted:
+                    return  # User cancelled
+
+                params = dialog.get_values()
+                spike_data = self.get_spike_data(
+                    channel=params["channel"],
+                    height_std=params["threshold_std"],
+                    window_ms=params["window_ms"]
+                )
                 spike_times = spike_data["times"].to_numpy()
                 isi_result = self.controller.data.compute_isi_distribution_over_time(
-                    spike_times_ms=spike_times
+                    spike_times_ms=spike_times,
+                    bin_size_ms=params["isi_bins_ms"],
+                    window_seconds=params["window_size_sec"]
                 )
 
                 analysis_payload = {
@@ -333,7 +386,37 @@ class NeuralTab(QWidget):
                 self.analysis_window.show()
             
         if analysis == "Clustering of Spikes":
-            spike_data = self.get_spike_data(self.controller.data.filter_ch[4])
+            param_spec = {
+                        "channel": {
+                            "type": "choice",
+                            "options": self.controller.data.filter_ch,
+                            "label": "Channel",
+                            "default": self.controller.data.filter_ch[0] if self.controller.data.filter_ch else None,
+                        },
+                        "threshold_std": {
+                            "type": "float",
+                            "label": "Spike Threshold (std)",
+                            "default": 4.5,
+                            "min": 0,
+                            "max": 20,
+                            "step": 0.1,
+                        },
+                        "window_ms": {
+                            "type": "int",
+                            "label": "Waveform Window (ms)",
+                            "default": 2,
+                            "min": 1,
+                            "max": 10,
+                        },
+            }
+
+            dialog = ParameterDialog(param_spec, parent=self)
+
+            if dialog.exec_() != QDialog.Accepted:
+                    return  # User cancelled
+
+            params = dialog.get_values()
+            spike_data = self.get_spike_data(params["channel"], params["threshold_std"], params["window_ms"])
             spike_times = spike_data["times"].to_numpy()
             spike_waveforms = spike_data["waveforms"]
 
