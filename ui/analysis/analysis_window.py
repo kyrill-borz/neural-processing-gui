@@ -46,7 +46,7 @@ class AnalysisWindow(QMainWindow):
 
                     # bins has length N+1, hist has length N
                     plot.plot(
-                        bins[:-1],
+                        bins,
                         hist,
                         stepMode=True,
                         fillLevel=0
