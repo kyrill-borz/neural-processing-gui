@@ -26,9 +26,11 @@ class AnalysisWindow(QMainWindow):
             if item["kind"] in ["line", "scatter", "hist"]:
                 plot = pg.PlotWidget(title=item.get("title", ""))
 
+                # ---- LINE ----
                 if item["kind"] == "line":
                     plot.plot(item["x"], item["y"])
 
+                # ---- SCATTER ----
                 elif item["kind"] == "scatter":
                     plot.plot(
                         item["x"],
@@ -37,10 +39,29 @@ class AnalysisWindow(QMainWindow):
                         symbol="o"
                     )
 
+                # ---- HISTOGRAM ----
                 elif item["kind"] == "hist":
                     y = item["y"]
                     hist, bins = np.histogram(y, bins=item.get("bins", 50))
-                    plot.plot(bins, hist, stepMode=True)
+
+                    # bins has length N+1, hist has length N
+                    plot.plot(
+                        bins[:-1],
+                        hist,
+                        stepMode=True,
+                        fillLevel=0
+                    )
+
+                # ---- Axis Labels (NEW) ----
+                if "xlabel" in item:
+                    plot.setLabel("bottom", item["xlabel"])
+
+                if "ylabel" in item:
+                    plot.setLabel("left", item["ylabel"])
+
+                # Optional grid
+                if item.get("grid", False):
+                    plot.showGrid(x=True, y=True)
 
                 layout.addWidget(plot)
                 continue
