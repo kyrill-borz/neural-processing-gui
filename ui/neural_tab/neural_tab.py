@@ -93,7 +93,7 @@ class NeuralTab(QWidget):
         self.display_referenced_channels(ref_df)
 
         if self.singleChCheck.isChecked():
-            self.apply_single_channel_analysis(self.controller.data.filter_ch[4])
+            self.apply_single_channel_analysis()
 
         # if self.multiChCheck.isChecked():
         #     self.apply_multi_channel_analysis()
@@ -214,7 +214,7 @@ class NeuralTab(QWidget):
 
         return spike_result
 
-    def apply_single_channel_analysis(self, channel: str):
+    def apply_single_channel_analysis(self):
         analysis = self.singleAnalysisCombo.currentText()
 
         if analysis == "Single Channel Spike Detection":
@@ -263,7 +263,7 @@ class NeuralTab(QWidget):
             # No spikes case
             if spike_data["indices"] is None or len(spike_data["indices"]) == 0:
                 payload = {
-                    "title": f"Spike Analysis – {channel}",
+                    "title": f"Spike Analysis – {params['channel']}",
                     "plots": [
                         {
                             "kind": "text",
@@ -273,12 +273,14 @@ class NeuralTab(QWidget):
                 }
             else:
                 payload = {
-                    "title": f"Spike Analysis – {channel}",
+                    "title": f"Spike Analysis – {params['channel']}",
                     "plots": [
                         {
                             "title": "Detected Spikes",
                             "x": spike_data["times"],
                             "y": spike_data["peaks"],
+                            "xlabel": "Time (s)",
+                            "ylabel": "Amplitude (uV)",
                             "kind": "scatter",
                         }
                     ]
@@ -290,6 +292,8 @@ class NeuralTab(QWidget):
                         "title": "Average Spike Waveform",
                         "x": np.arange(len(spike_data["mean_waveform"])),
                         "y": spike_data["mean_waveform"],
+                        "xlabel": "Time (ms)",
+                        "ylabel": "Amplitude (uV)",
                         "kind": "line",
                     })
 
@@ -298,6 +302,8 @@ class NeuralTab(QWidget):
                     payload["plots"].append({
                         "title": "ISI Histogram",
                         "y": spike_data["isi_ms"],
+                        "xlabel": "Inter-Spike Interval (ms)",
+                        "ylabel": "Count",
                         "kind": "hist",
                     })
 
@@ -370,7 +376,7 @@ class NeuralTab(QWidget):
                             "x": isi_result["window_centers_sec"],
                             "y": isi_result["isi_bins_ms"],
                             "xlabel": "Time (s)",
-                            "ylabel": "ISI (ms)",
+                            "ylabel": "Inter-Spike Interval (ms)",
                         },
                         {
                             "kind": "text",
@@ -435,6 +441,8 @@ class NeuralTab(QWidget):
                     "title": f"Cluster {i} Mean Waveform",
                     "x": np.arange(len(mean_wf)),
                     "y": mean_wf,
+                    "xlabel": "Time (ms)",
+                    "ylabel": "Amplitude (uV)",
                 })
             for i, isi in enumerate(clustering_result["cluster_isi"]):
                 if len(isi) == 0:
@@ -444,6 +452,8 @@ class NeuralTab(QWidget):
                     "kind": "hist",
                     "title": f"Cluster {i} ISI",
                     "y": isi,
+                    "xlabel": "Inter-Spike Interval (ms)",
+                    "ylabel": "Count",
                     "bins": 50
                 })
 
@@ -455,6 +465,8 @@ class NeuralTab(QWidget):
                 "title": "Feature Space (Peak-to-Peak vs Energy)",
                 "x": features[:, 0],
                 "y": features[:, 1],
+                "xlabel": "Peak-to-Peak (uV)",
+                "ylabel": "Energy (uV^2)",
             })
 
             analysis_payload = {
