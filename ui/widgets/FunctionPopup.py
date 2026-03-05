@@ -8,6 +8,8 @@ from PyQt5.QtWidgets import (
     QComboBox,
     QCheckBox,
     QLabel,
+    QListWidget,
+    QListWidgetItem,
 )
 from PyQt5.QtCore import Qt
 
@@ -67,7 +69,23 @@ class ParameterDialog(QDialog):
 
                 if "default" in spec and spec["default"] in options:
                     widget.setCurrentText(spec["default"])
+            elif field_type == "multichoice":
+                widget = QListWidget()
 
+                options = spec.get("options", [])
+                default = spec.get("default", [])
+
+                for opt in options:
+                    item = QListWidgetItem(opt)
+                    item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
+
+                    if opt in default:
+                        item.setCheckState(Qt.Checked)
+                    else:
+                        item.setCheckState(Qt.Unchecked)
+
+                    widget.addItem(item)
+            
             elif field_type == "bool":
                 widget = QCheckBox()
                 widget.setChecked(spec.get("default", False))
