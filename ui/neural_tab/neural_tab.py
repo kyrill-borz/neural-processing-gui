@@ -28,9 +28,9 @@ class NeuralTab(QWidget):
             "No Referencing",
             "Median",
             "Mean",
-            "Laplacian",
-            "Bipolar",
-            "Tripolar",
+            # "Laplacian",
+            # "Bipolar",
+            # "Tripolar",
         ])
 
         self.singleAnalysisCombo = QComboBox()
@@ -95,8 +95,8 @@ class NeuralTab(QWidget):
         if self.singleChCheck.isChecked():
             self.apply_single_channel_analysis()
 
-        # if self.multiChCheck.isChecked():
-        #     self.apply_multi_channel_analysis()
+        if self.multiChCheck.isChecked():
+            self.apply_multi_channel_analysis()
     
     def display_referenced_channels(self, df):
 
@@ -476,7 +476,213 @@ class NeuralTab(QWidget):
 
             self.analysis_window = AnalysisWindow(analysis_payload, self)
             self.analysis_window.show()
-    
+    import numpy as np
+
+
+    def build_multi_channel_dashboard(self, results: dict, fs: float):
+        """
+        Convert multi-channel spike analysis results into a dashboard payload.
+
+        Parameters
+        ----------
+        results : dict
+            Output of multi_channel_spike_analysis_polars()
+
+        fs : float
+            Sampling rate
+
+        Returns
+        -------
+        dict
+            analysis_payload for AnalysisWindow
+        """
+
+        plots = []
+
+        channels = []
+        raster_x = []
+        raster_y = []
+
+        firing_rates = []
+        channel_labels = []
+
+        # ------------------------------------------------
+        # Raster + firing rate preparation
+        # ------------------------------------------------
+
+        for idx, (ch, res) in enumerate(results.items()):
+
+            if res["indices"] is None:
+                continue
+
+            spike_times = res["times"]
+
+            if spike_times is None or len(spike_times) == 0:
+                continue
+
+            channels.append(ch)
+
+            # Raster coordinates
+            raster_x.extend(spike_times)
+            raster_y.extend([idx] * len(spike_times))
+
+            # Firing rate
+            duration = spike_times[-1] if len(spike_times) > 0 else 1
+            rate = len(spike_times) / duration
+
+            firing_rates.append(rate)
+            channel_labels.append(ch)
+
+            # ------------------------------------------------
+            # ISI histogram per channel
+            # ------------------------------------------------
+
+            isi = res.get("isi_ms")
+
+            if isi is not None and len(isi) > 0:
+
+                plots.append({
+                    "kind": "hist",
+                    "title": f"{ch} ISI Distribution",
+                    "y": isi,
+                    "bins": 50,
+                    "xlabel": "Inter-Spike Interval (ms)",
+                    "ylabel": "Count"
+                })
+
+            # ------------------------------------------------
+            # Mean spike waveform
+            # ------------------------------------------------
+
+            mean_wf = res.get("mean_waveform")
+
+            if mean_wf is not None:
+
+                x = np.arange(len(mean_wf)) / fs * 1000
+
+                plots.append({
+                    "kind": "line",
+                    "title": f"{ch} Mean Spike Waveform",
+                    "x": x,
+                    "y": mean_wf,
+                    "xlabel": "Time (ms)",
+                    "ylabel": "Amplitude (uV)"
+                })
+
+        # ------------------------------------------------
+        # Spike raster plot
+        # ------------------------------------------------
+
+        if len(raster_x) > 0:
+
+            plots.insert(0, {
+                "kind": "scatter",
+                "title": "Spike Raster",
+                "x": np.array(raster_x),
+                "y": np.array(raster_y),
+                "xlabel": "Time (s)",
+                "ylabel": "Channel Index"
+            })
+
+        # ------------------------------------------------
+        # Channel firing rate bar chart
+        # ------------------------------------------------
+
+        if len(firing_rates) > 0:
+
+            plots.insert(1, {
+                "kind": "bar",
+                "title": "Channel Firing Rates",
+                "x": np.arange(len(firing_rates)),
+                "y": firing_rates,
+                "xlabel": "Channel",
+                "ylabel": "Rate (Hz)",
+                "labels": channel_labels
+            })
+
+        # ------------------------------------------------
+        # Population firing rate
+        # ------------------------------------------------
+
+        all_spikes = []
+
+        for res in results.values():
+
+            if res["times"] is not None:
+                all_spikes.extend(res["times"])
+
+        if len(all_spikes) > 0:
+
+            all_spikes = np.array(all_spikes)
+
+            bins = np.linspace(0, all_spikes.max(), 200)
+            hist, edges = np.histogram(all_spikes, bins=bins)
+
+            plots.insert(2, {
+                "kind": "line",
+                "title": "Population Firing Rate",
+                "x": edges[:-1],
+                "y": hist,
+                "xlabel": "Time (s)",
+                "ylabel": "Spike Count"
+            })
+
+        analysis_payload = {
+            "title": "Multi-Channel Neural Analysis",
+            "plots": plots
+        }
+
+        return analysis_payload
+
+    def apply_multi_channel_analysis(self):
+        analysis = self.multiAnalysisCombo.currentText()
+        if analysis == "Multiple Channel Spike Detection":
+            param_spec = {
+                        "channels": {
+                            "type": "multichoice",
+                            "options": self.controller.data.filter_ch,
+                            "label": "Channels",
+                            "default": self.controller.data.filter_ch[0] if self.controller.data.filter_ch else None,
+                        },
+                        "threshold_std": {
+                            "type": "float",
+                            "label": "Spike Threshold (std)",
+                            "default": 4.5,
+                            "min": 0,
+                            "max": 20,
+                            "step": 0.1,
+                        },
+                        "window_ms": {
+                            "type": "int",
+                            "label": "Waveform Window (ms)",
+                            "default": 2,
+                            "min": 1,
+                            "max": 10,
+                        },
+            }
+            dialog = ParameterDialog(param_spec, parent=self)
+
+            if dialog.exec_() != QDialog.Accepted:
+                    return  # User cancelled
+
+            params = dialog.get_values()
+            results = self.controller.data.multi_channel_spike_analysis_polars(
+                channels=params["channels"],
+                height_std=params["threshold_std"],
+                min_distance_ms=params["window_ms"]
+            )
+            analysis_payload = self.build_multi_channel_dashboard(results, fs=20000)
+            
+            self.analysis_window = AnalysisWindow(analysis_payload, self)
+            self.analysis_window.show()
+        if analysis == "Cross Correlation of Spike Trains":
+            pass
+        if analysis == "Directionality Analysis":
+
+            pass
+        if analysis == "Propagation Coefficient":
+            pass
+
     def handleChannelDisplayButton(self):
         self.channel_window = ChannelDisplayWindow(self.controller)
         self.channel_window.show()
