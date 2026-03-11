@@ -115,5 +115,13 @@ class ParameterDialog(QDialog):
 
             elif isinstance(widget, QCheckBox):
                 values[key] = widget.isChecked()
+            
+            elif isinstance(widget, QListWidget):
+                checked_items = []
+                for i in range(widget.count()):
+                    item = widget.item(i)
+                    if item.checkState() == Qt.Checked:
+                        checked_items.append(item.text())
+                values[key] = checked_items
 
         return values
