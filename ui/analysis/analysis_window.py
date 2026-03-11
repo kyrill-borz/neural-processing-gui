@@ -1,4 +1,4 @@
-from PyQt5.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QLabel
+from PyQt5.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QLabel, QScrollArea
 from PyQt5.QtCore import Qt, QRectF
 import pyqtgraph as pg
 import numpy as np
@@ -13,6 +13,8 @@ class AnalysisWindow(QMainWindow):
 
         central = QWidget()
         layout = QVBoxLayout(central)
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
 
         for item in result["plots"]:
 
@@ -94,5 +96,5 @@ class AnalysisWindow(QMainWindow):
 
                 layout.addWidget(graphics)
                 continue
-
-        self.setCentralWidget(central)
+        scroll.setWidget(central)
+        self.setCentralWidget(scroll)
