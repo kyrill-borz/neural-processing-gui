@@ -7,7 +7,7 @@ import numpy as np
 class AnalysisWindow(QMainWindow):
     def __init__(self, result: dict, parent=None):
         super().__init__(parent)
-
+        self.plotHeight = 300
         self.setWindowTitle(result.get("title", "Analysis"))
         self.resize(1000, 800)
 
@@ -15,6 +15,8 @@ class AnalysisWindow(QMainWindow):
         layout = QVBoxLayout(central)
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
+
+        self.time_reference_plot = None
 
         for item in result["plots"]:
 
@@ -27,7 +29,14 @@ class AnalysisWindow(QMainWindow):
             # ---------- STANDARD PLOT ----------
             if item["kind"] in ["line", "scatter", "hist"]:
                 plot = pg.PlotWidget(title=item.get("title", ""))
+                plot.setMinimumHeight(self.plotHeight)
 
+                if item.get("time_axis", False):
+                    if self.time_reference_plot is None:
+                        self.time_reference_plot = plot
+                    else:
+                        plot.setXLink(self.time_reference_plot)
+                        
                 # ---- LINE ----
                 if item["kind"] == "line":
                     plot.plot(item["x"], item["y"])
@@ -72,6 +81,7 @@ class AnalysisWindow(QMainWindow):
             if item["kind"] == "image":
                 graphics = pg.GraphicsLayoutWidget()
                 plot = graphics.addPlot(title=item.get("title", ""))
+                plot.setMinimumHeight(self.plotHeight)
 
                 img = pg.ImageItem(item["z"])
                 plot.addItem(img)
@@ -96,5 +106,6 @@ class AnalysisWindow(QMainWindow):
 
                 layout.addWidget(graphics)
                 continue
+
         scroll.setWidget(central)
         self.setCentralWidget(scroll)
