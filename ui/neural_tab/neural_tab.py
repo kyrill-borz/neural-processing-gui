@@ -581,7 +581,8 @@ class NeuralTab(QWidget):
                 "x": np.array(raster_x),
                 "y": np.array(raster_y),
                 "xlabel": "Time (s)",
-                "ylabel": "Channel Index"
+                "ylabel": "Channel Index",
+                "time_axis": True
             })
 
         # ------------------------------------------------
@@ -633,6 +634,40 @@ class NeuralTab(QWidget):
         }
 
         return analysis_payload
+    def build_spatial_correlation_payload(self, result):
+
+        plots = []
+
+        distances = result["distances"]
+        correlations = result["correlations"]
+
+        slope = result["slope"]
+        intercept = result["intercept"]
+
+        fit = slope * distances + intercept
+
+        plots.append({
+            "kind": "scatter",
+            "title": "Spatial Spike Correlation vs Distance",
+            "x": distances,
+            "y": correlations,
+            "xlabel": "Distance (mm)",
+            "ylabel": "Normalized Max Cross-Correlation",
+        })
+
+        plots.append({
+            "kind": "line",
+            "title": "Correlation Distance Fit",
+            "x": distances,
+            "y": fit,
+            "xlabel": "Distance (mm)",
+            "ylabel": "Fit"
+        })
+
+        return {
+            "title": "Spatial Neural Correlation",
+            "plots": plots
+        }
 
     def apply_multi_channel_analysis(self):
         analysis = self.multiAnalysisCombo.currentText()
@@ -672,11 +707,56 @@ class NeuralTab(QWidget):
                 min_distance_ms=params["window_ms"]
             )
             analysis_payload = self.build_multi_channel_dashboard(results, fs=20000)
-            
+
             self.analysis_window = AnalysisWindow(analysis_payload, self)
             self.analysis_window.show()
         if analysis == "Cross Correlation of Spike Trains":
-            pass
+            param_spec = {
+                        "channels": {
+                            "type": "multichoice",
+                            "options": self.controller.data.filter_ch,
+                            "label": "Channels",
+                            "default": self.controller.data.filter_ch[0] if self.controller.data.filter_ch else None,
+                        },
+                        "threshold_std": {
+                            "type": "float",
+                            "label": "Spike Threshold (std)",
+                            "default": 4.5,
+                            "min": 0,
+                            "max": 20,
+                            "step": 0.1,
+                        },
+                        "window_ms": {
+                            "type": "int",
+                            "label": "Waveform Window (ms)",
+                            "default": 2,
+                            "min": 1,
+                            "max": 10,
+                        },
+            }
+            dialog = ParameterDialog(param_spec, parent=self)
+
+            if dialog.exec_() != QDialog.Accepted:
+                    return  # User cancelled
+
+            params = dialog.get_values()
+            spike_results = self.controller.data.multi_channel_spike_analysis_polars(
+                channels=params["channels"],
+                height_std=params["threshold_std"],
+                min_distance_ms=params["window_ms"]
+            )
+            spike_trains = {
+                ch: spike_results[ch]["indices"]
+                for ch in spike_results
+            }
+            corr_result = self.controller.data.spatial_spike_correlation(
+                spike_trains,
+                correct_order=[16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31]
+            )                                                                   
+            analysis_payload = self.build_spatial_correlation_payload(corr_result)
+            self.analysis_window = AnalysisWindow(analysis_payload, self)
+            self.analysis_window.show()
+
         if analysis == "Directionality Analysis":
 
             pass
