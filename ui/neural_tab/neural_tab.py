@@ -28,9 +28,9 @@ class NeuralTab(QWidget):
             "No Referencing",
             "Median",
             "Mean",
-            # "Laplacian",
-            # "Bipolar",
-            # "Tripolar",
+            "Laplacian",
+            "Bipolar",
+            "Tripolar",
         ])
 
         self.singleAnalysisCombo = QComboBox()
