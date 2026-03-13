@@ -669,6 +669,46 @@ class NeuralTab(QWidget):
             "plots": plots
         }
 
+    def build_propagation_payload(self, result):
+
+        plots = []
+
+        distances = []
+        pos = []
+        neg = []
+
+        for dist, counts in result["directionality_counts"].items():
+
+            distances.append(dist)
+            pos.append(counts["positive"])
+            neg.append(counts["negative"])
+
+        distances = np.array(distances)
+        pos = np.array(pos)
+        neg = np.array(neg)
+
+        plots.append({
+            "kind": "line",
+            "title": "Spike Propagation Directionality",
+            "x": distances,
+            "y": pos,
+            "xlabel": "Distance (mm)",
+            "ylabel": "Forward Spikes"
+        })
+
+        plots.append({
+            "kind": "line",
+            "title": "Reverse Propagation",
+            "x": distances,
+            "y": neg,
+            "xlabel": "Distance (mm)",
+            "ylabel": "Reverse Spikes"
+        })
+
+        return {
+            "title": "Neural Spike Propagation",
+            "plots": plots
+        }
     def apply_multi_channel_analysis(self):
         analysis = self.multiAnalysisCombo.currentText()
         if analysis == "Multiple Channel Spike Detection":
@@ -758,11 +798,131 @@ class NeuralTab(QWidget):
             self.analysis_window.show()
 
         if analysis == "Directionality Analysis":
+            param_spec = {
+                        "channels": {
+                            "type": "multichoice",
+                            "options": self.controller.data.filter_ch,
+                            "label": "Channels",
+                            "default": self.controller.data.filter_ch[0] if self.controller.data.filter_ch else None,
+                        },
+                        "threshold_std": {
+                            "type": "float",
+                            "label": "Spike Threshold (std)",
+                            "default": 4.5,
+                            "min": 0,
+                            "max": 20,
+                            "step": 0.1,
+                        },
+                        "window_ms": {
+                            "type": "int",
+                            "label": "Waveform Window (ms)",
+                            "default": 2,
+                            "min": 1,
+                            "max": 10,
+                        },
+            }
+            dialog = ParameterDialog(param_spec, parent=self)
 
-            pass
+            if dialog.exec_() != QDialog.Accepted:
+                    return  # User cancelled
+
+            params = dialog.get_values()
+            results = self.controller.data.multi_channel_spike_analysis_polars(
+                channels=params["channels"],
+                height_std=params["threshold_std"],
+                min_distance_ms=params["window_ms"]
+            )
+
+            spike_times_ms = {
+                ch: results[ch]["times"] * 1000
+                for ch in results
+                if results[ch]["times"] is not None
+            }
+            directionality_result = self.controller.data.spike_propagation_directionality(
+                spike_times_ms=spike_times_ms,
+                correct_order=[16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31],
+                max_delay_ms=7
+            )
+            analysis_payload = self.build_propagation_payload(directionality_result)
+            self.analysis_window = AnalysisWindow(analysis_payload, self)
+            self.analysis_window.show()
+            
         if analysis == "Propagation Coefficient":
-            pass
+            param_spec = {
+                        "channels": {
+                            "type": "multichoice",
+                            "options": self.controller.data.filter_ch,
+                            "label": "Channels",
+                            "default": self.controller.data.filter_ch[0] if self.controller.data.filter_ch else None,
+                        },
+                        "threshold_std": {
+                            "type": "float",
+                            "label": "Spike Threshold (std)",
+                            "default": 4.5,
+                            "min": 0,
+                            "max": 20,
+                            "step": 0.1,
+                        },
+                        "window_ms": {
+                            "type": "int",
+                            "label": "Waveform Window (ms)",
+                            "default": 2,
+                            "min": 1,
+                            "max": 10,
+                        },
+                        "window_length_min": {
+                            "type": "int",
+                            "label": "Rolling Window Length (min)",
+                            "default": 1,
+                            "min": 1,
+                            "max": 10,
+                        },
+            }
+            dialog = ParameterDialog(param_spec, parent=self)
 
+            if dialog.exec_() != QDialog.Accepted:
+                    return  # User cancelled
+
+            params = dialog.get_values()
+            spike_results = self.controller.data.multi_channel_spike_analysis_polars(
+                channels=params["channels"],
+                height_std=params["threshold_std"],
+                min_distance_ms=params["window_ms"]
+            )
+            spike_trains = {
+                ch: spike_results[ch]["indices"]
+                for ch in spike_results
+            }
+            result = self.controller.data.rolling_propagation_index(
+                spike_trains,
+                correct_order=[16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31],
+                window_length_min = params["window_length_min"],
+                step_size_min = 1,
+                c2c_mm = 4.5,
+                max_delay_ms = 2,
+                bin_range=(-2, 2),
+                bin_width=0.002
+            )                                                                   
+
+            plots = []
+
+            for i, pair in enumerate(result["pairs"]):
+                plots.append({
+                    "kind": "line",
+                    "title": f"PI {pair[0]}-{pair[1]}",
+                    "x": result["periods_min"],
+                    "y": result["pi_storage"][pair],
+                    "xlabel": "Time (min)",
+                    "ylabel": "Propagation Index"
+                })
+
+            analysis_payload = {
+                "title": "Rolling Propagation Index",
+                "plots": plots
+            }
+            self.analysis_window = AnalysisWindow(analysis_payload, self)
+            self.analysis_window.show()
+            
     def handleChannelDisplayButton(self):
         self.channel_window = ChannelDisplayWindow(self.controller)
         self.channel_window.show()
