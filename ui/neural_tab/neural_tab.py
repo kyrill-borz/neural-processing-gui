@@ -130,7 +130,7 @@ class NeuralTab(QWidget):
 
             y = series.to_numpy()
 
-            plot = pg.PlotWidget(title=ch)
+            plot = pg.PlotWidget(title=self.controller.get_channel_name(ch))
             plot.setFixedHeight(140)
 
             curve = plot.plot(y)
