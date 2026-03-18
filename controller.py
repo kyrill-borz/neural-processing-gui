@@ -27,9 +27,9 @@ class AppController:
     def apply_referencing(self, method):
         self.data.apply_referencing(method)
 
-    def export(self):
+    def export(self, folder_path):
         # Implement export functionality here
-        pass
+        self.data.export(folder_path)
 
     def make_channel_names(self):
         for i, channel in enumerate(self.data.filter_ch):
