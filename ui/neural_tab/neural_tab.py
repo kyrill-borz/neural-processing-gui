@@ -186,7 +186,7 @@ class NeuralTab(QWidget):
             symbolSize=4,
         )
 
-    def get_spike_data(self, channel: str, height_std=4.5, window_ms=2):
+    def get_spike_data(self, channel: str, height_std=2.5, maximum_height_std=10.0, window_ms=2):
         """
         Returns spike analysis result for a channel.
         Computes it if not already cached.
@@ -203,6 +203,7 @@ class NeuralTab(QWidget):
             channel=channel,
             extract_waveforms=True,
             height_std=height_std,
+            maximum_height_std=maximum_height_std,
             min_distance_ms=window_ms,
         )
 
@@ -228,9 +229,17 @@ class NeuralTab(QWidget):
                 "threshold_std": {
                     "type": "float",
                     "label": "Spike Threshold (std)",
-                    "default": 4.5,
+                    "default": 2.5,
                     "min": 0,
                     "max": 20,
+                    "step": 0.1,
+                },
+                "maximum_height_std": {
+                    "type": "float",
+                    "label": "Maximum Spike Threshold (std)",
+                    "default": 10.0,
+                    "min": 0,
+                    "max": 50,
                     "step": 0.1,
                 },
                 "window_ms": {
@@ -258,6 +267,7 @@ class NeuralTab(QWidget):
             spike_data = self.get_spike_data(
                 channel=params["channel"],
                 height_std=params["threshold_std"],
+                maximum_height_std=params["maximum_height_std"],
                 window_ms=params["window_ms"]
             )
             # No spikes case
@@ -273,7 +283,7 @@ class NeuralTab(QWidget):
                 }
             else:
                 payload = {
-                    "title": f"Spike Analysis – {params['channel']}",
+                    "title": f"Spike Analysis – {self.controller.get_channel_name(params['channel'])}",
                     "plots": [
                         {
                             "title": "Detected Spikes",
