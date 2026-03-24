@@ -32,19 +32,16 @@ class ExportTab(QWidget):
 
         except Exception as e:
             print(f"Export failed: {e}")
-    def import_neurogram(self, parent_widget=None):
-        pass
-        # file_path, _ = QFileDialog.getOpenFileName(
-        #     parent_widget,
-        #     "Select Neurogram File",
-        #     filter="Neurogram Files (*.neurogram);;All Files (*)"
-        # )
+    def import_neurogram(self):
+        folder_path = QFileDialog.getExistingDirectory(
+            caption="Select Import Folder",
+        )
 
-        # if not file_path:
-        #     return
+        if not folder_path:
+            return
 
-        # try:
-        #     self.controller.load_data(file_path)
+        try:
+            self.controller.import_data_from_folder(folder_path)
 
-        # except Exception as e:
-        #     print(f"Import failed: {e}")
+        except Exception as e:
+            print(f"Import failed: {e}")
