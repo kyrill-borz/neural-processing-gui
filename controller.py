@@ -30,11 +30,15 @@ class AppController:
     def export(self, folder_path):
         # Implement export functionality here
         self.data.export(folder_path)
+    
+    def import_data_from_folder(self, folder_path):
+        from utils.Neurogram import Recording
+        self.data = Recording.load_from_folder(folder_path)
+        self.make_channel_names()
 
     def make_channel_names(self):
         for i, channel in enumerate(self.data.filter_ch):
             self.channel_names[channel] = channel.replace("ch_", "Channel ") + (f" ({self.data.Z_magnitude})" if self.data.Z_magnitude is not None else "")
-        print("Z magnitude:", self.data.Z_magnitude)
     
     def get_channel_name(self, channel):
         return self.channel_names[channel]
