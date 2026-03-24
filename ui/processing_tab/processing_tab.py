@@ -10,10 +10,7 @@ class ProcessingTab(QWidget):
     def _build_ui(self):
         """Create the Network page UI."""
         layout = QGridLayout(self)
-        layout.addWidget(QCheckBox("Using Multiple Traces"), 0,0)
-
-        layout.addWidget(QPushButton("Temporal Heatmap Correlogram"),0,1)
-        layout.addWidget(QPushButton("Overlap Analysed Traces"),0,2)
+        layout.addWidget(QPushButton("Glucose Comparison"),0,1)
         plot_graph_raw = pg.PlotWidget()
         plot_graph_filtered = pg.PlotWidget()
         layout.addWidget(plot_graph_raw,2,0,1,3)
