@@ -287,11 +287,16 @@ class NeuralTab(QWidget):
                     "plots": [
                         {
                             "title": "Detected Spikes",
-                            "x": spike_data["times"],
-                            "y": spike_data["peaks"],
+                            "kind":"plot",
+                            "series": [
+                                {
+                                    "x": spike_data["times"],
+                                    "y": spike_data["peaks"],
+                                    "type": "scatter"
+                                }
+                            ],
                             "xlabel": "Time (s)",
                             "ylabel": "Amplitude (uV)",
-                            "kind": "scatter",
                         }
                     ]
                 }
@@ -300,21 +305,27 @@ class NeuralTab(QWidget):
                 if spike_data["mean_waveform"] is not None:
                     payload["plots"].append({
                         "title": "Average Spike Waveform",
-                        "x": np.arange(len(spike_data["mean_waveform"])),
-                        "y": spike_data["mean_waveform"],
+                        "series":[{
+                            "x": np.arange(len(spike_data["mean_waveform"])),
+                            "y": spike_data["mean_waveform"],
+                            "type": "line"
+                        }],
                         "xlabel": "Time (ms)",
                         "ylabel": "Amplitude (uV)",
-                        "kind": "line",
+                        "kind": "plot",
                     })
 
                 # Add ISI if available
                 if spike_data["isi_ms"] is not None:
                     payload["plots"].append({
                         "title": "ISI Histogram",
-                        "y": spike_data["isi_ms"],
+                        "series": [{
+                            "y": spike_data["isi_ms"],
+                            "type": "hist"
+                        }],
                         "xlabel": "Inter-Spike Interval (ms)",
                         "ylabel": "Count",
-                        "kind": "hist",
+                        "kind": "plot",
                     })
 
             self.analysis_window = AnalysisWindow(payload, self)
@@ -447,10 +458,13 @@ class NeuralTab(QWidget):
                     continue
 
                 plots.append({
-                    "kind": "line",
+                    "kind": "plot",
                     "title": f"Cluster {i} Mean Waveform",
-                    "x": np.arange(len(mean_wf)),
-                    "y": mean_wf,
+                    "series": [{
+                        "x": np.arange(len(mean_wf)),
+                        "y": mean_wf,
+                        "type": "line"
+                    }],
                     "xlabel": "Time (ms)",
                     "ylabel": "Amplitude (uV)",
                 })
@@ -459,22 +473,29 @@ class NeuralTab(QWidget):
                     continue
 
                 plots.append({
-                    "kind": "hist",
+                    "kind": "plot",
                     "title": f"Cluster {i} ISI",
-                    "y": isi,
+                    "series": [{
+                        "y": isi,
+                        "type": "hist",
+                        "bins": 50
+                    }],
                     "xlabel": "Inter-Spike Interval (ms)",
                     "ylabel": "Count",
-                    "bins": 50
+                    
                 })
 
             features = clustering_result["features"]
             labels = clustering_result["labels"]
 
             plots.append({
-                "kind": "scatter",
+                "kind": "plot",
                 "title": "Feature Space (Peak-to-Peak vs Energy)",
-                "x": features[:, 0],
-                "y": features[:, 1],
+                "series": [{
+                    "x": features[:, 0],
+                    "y": features[:, 1],
+                    "type": "scatter"
+                }],
                 "xlabel": "Peak-to-Peak (uV)",
                 "ylabel": "Energy (uV^2)",
             })
@@ -552,10 +573,14 @@ class NeuralTab(QWidget):
             if isi is not None and len(isi) > 0:
 
                 plots.append({
-                    "kind": "hist",
+                    "kind": "plot",
                     "title": f"{ch} ISI Distribution",
-                    "y": isi,
-                    "bins": 50,
+                    "series": [{
+                        "y": isi,
+                        "type": "hist",
+                        "bins": 50
+                    }],
+                    
                     "xlabel": "Inter-Spike Interval (ms)",
                     "ylabel": "Count"
                 })
@@ -571,10 +596,14 @@ class NeuralTab(QWidget):
                 x = np.arange(len(mean_wf)) / fs * 1000
 
                 plots.append({
-                    "kind": "line",
+                    "kind": "plot",
                     "title": f"{ch} Mean Spike Waveform",
-                    "x": x,
-                    "y": mean_wf,
+                    "series": [{
+                        "x": x,
+                        "y": mean_wf,
+                        "type": "line"
+                        
+                    }],
                     "xlabel": "Time (ms)",
                     "ylabel": "Amplitude (uV)"
                 })
@@ -586,10 +615,14 @@ class NeuralTab(QWidget):
         if len(raster_x) > 0:
 
             plots.insert(0, {
-                "kind": "scatter",
+                "kind": "plot",
                 "title": "Spike Raster",
-                "x": np.array(raster_x),
-                "y": np.array(raster_y),
+                "series": [{
+                    "x": np.array(raster_x),
+                    "y": np.array(raster_y),
+                    "type": "scatter",
+
+                }],
                 "xlabel": "Time (s)",
                 "ylabel": "Channel Index",
                 "time_axis": True
@@ -602,10 +635,13 @@ class NeuralTab(QWidget):
         if len(firing_rates) > 0:
 
             plots.insert(1, {
-                "kind": "bar",
+                "kind": "plot",
                 "title": "Channel Firing Rates",
-                "x": np.arange(len(firing_rates)),
-                "y": firing_rates,
+                "series": [{
+                    "x": np.arange(len(firing_rates)),
+                    "y": firing_rates,
+                    "type": "bar"
+                }],
                 "xlabel": "Channel",
                 "ylabel": "Rate (Hz)",
                 "labels": channel_labels
@@ -630,10 +666,13 @@ class NeuralTab(QWidget):
             hist, edges = np.histogram(all_spikes, bins=bins)
 
             plots.insert(2, {
-                "kind": "line",
+                "kind": "plot",
                 "title": "Population Firing Rate",
-                "x": edges[:-1],
-                "y": hist,
+                "series": [{
+                    "x": (edges[:-1] + edges[1:]) / 2,
+                    "y": hist,
+                    "type": "hist"
+                }],
                 "xlabel": "Time (s)",
                 "ylabel": "Spike Count"
             })
@@ -654,9 +693,9 @@ class NeuralTab(QWidget):
         intercept = result["intercept"]
 
         # ---- Ensure sorted for clean line rendering ----
-        order = np.argsort(distances)
-        distances = distances[order]
-        correlations = correlations[order]
+        # order = np.argsort(distances)
+        # distances = distances[order]
+        # correlations = correlations[order]
 
         fit = slope * distances + intercept
 
@@ -711,21 +750,21 @@ class NeuralTab(QWidget):
         neg = np.array(neg)
 
         plots.append({
-            "kind": "line",
+            "kind": "plot",
             "title": "Spike Propagation Directionality",
-            "x": distances,
-            "y": pos,
+            "series": [{
+                "type": "line",
+                "x": distances,
+                "y": pos,
+                "name": "Forward Spikes"
+            },{
+                "type": "line",
+                "x": distances,
+                "y": neg,
+                "name": "Reverse Spikes"
+            }],
             "xlabel": "Distance (mm)",
             "ylabel": "Forward Spikes"
-        })
-
-        plots.append({
-            "kind": "line",
-            "title": "Reverse Propagation",
-            "x": distances,
-            "y": neg,
-            "xlabel": "Distance (mm)",
-            "ylabel": "Reverse Spikes"
         })
 
         return {
@@ -935,8 +974,6 @@ class NeuralTab(QWidget):
                     "name": f"PI {pair[0]}-{pair[1]}",
                     "x": result["periods_min"],
                     "y": result["pi_storage"][pair],
-                    "xlabel": "Time (min)",
-                    "ylabel": "Propagation Index"
                 })
 
             analysis_payload = {

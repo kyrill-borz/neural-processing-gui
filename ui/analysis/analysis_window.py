@@ -40,7 +40,8 @@ class AnalysisWindow(QMainWindow):
                 legend = plot.addLegend()
 
                 for series in item.get("series", []):
-                    x = series["x"]
+                    if "x" in series:
+                        x = series["x"]
                     y = series["y"]
                     name = series.get("name", None)
 
@@ -68,6 +69,12 @@ class AnalysisWindow(QMainWindow):
                     elif series["type"] == "hist":
                         hist, bins = np.histogram(y, bins=series.get("bins", 50))
                         plot.plot(bins, hist, stepMode=True, fillLevel=0, name=name)
+
+                    elif series["type"] == "bar":
+                        x_width = (x[1] - x[0]) * 0.8 if len(x) > 1 else 0.8
+                        
+                        bg = pg.BarGraphItem(x=x, height=y, width=x_width, brush=(100, 100, 250, 150))
+                        plot.addItem(bg)
 
                 # ---- AXES ----
                 if "xlabel" in item:
