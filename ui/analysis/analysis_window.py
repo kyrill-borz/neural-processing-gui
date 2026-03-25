@@ -27,7 +27,7 @@ class AnalysisWindow(QMainWindow):
                 continue
 
             # ---------- STANDARD PLOT ----------
-            if item["kind"] in ["line", "scatter", "hist"]:
+            if item["kind"] == "plot":
                 plot = pg.PlotWidget(title=item.get("title", ""))
                 plot.setMinimumHeight(self.plotHeight)
 
@@ -36,43 +36,63 @@ class AnalysisWindow(QMainWindow):
                         self.time_reference_plot = plot
                     else:
                         plot.setXLink(self.time_reference_plot)
-                        
-                # ---- LINE ----
-                if item["kind"] == "line":
-                    plot.plot(item["x"], item["y"])
 
-                # ---- SCATTER ----
-                elif item["kind"] == "scatter":
-                    plot.plot(
-                        item["x"],
-                        item["y"],
-                        pen=None,
-                        symbol="o"
-                    )
+                legend = plot.addLegend()
 
-                # ---- HISTOGRAM ----
-                elif item["kind"] == "hist":
-                    y = item["y"]
-                    hist, bins = np.histogram(y, bins=item.get("bins", 50))
+                for series in item.get("series", []):
+                    x = series["x"]
+                    y = series["y"]
+                    name = series.get("name", None)
 
-                    # bins has length N+1, hist has length N
-                    plot.plot(
-                        bins,
-                        hist,
-                        stepMode=True,
-                        fillLevel=0
-                    )
+                    # ---- LINE ----
+                    if series["type"] == "line":
+                        plot.plot(x, y, name=name)
 
-                # ---- Axis Labels (NEW) ----
+                    # ---- SCATTER ----
+                    elif series["type"] == "scatter":
+                        scatter = plot.plot(
+                            x, y,
+                            pen=None,
+                            symbol="o",
+                            name=name
+                        )
+
+                        # ---- POINT LABELS ----
+                        if "labels" in series:
+                            for xi, yi, label in zip(x, y, series["labels"]):
+                                text = pg.TextItem(label, anchor=(0, 1))
+                                text.setPos(xi, yi)
+                                plot.addItem(text)
+
+                    # ---- HIST ----
+                    elif series["type"] == "hist":
+                        hist, bins = np.histogram(y, bins=series.get("bins", 50))
+                        plot.plot(bins, hist, stepMode=True, fillLevel=0, name=name)
+
+                # ---- AXES ----
                 if "xlabel" in item:
                     plot.setLabel("bottom", item["xlabel"])
-
                 if "ylabel" in item:
                     plot.setLabel("left", item["ylabel"])
 
-                # Optional grid
                 if item.get("grid", False):
                     plot.showGrid(x=True, y=True)
+
+                # ---- EQUATIONS ----
+                if "equations" in item:
+                    eq_text = "\n".join(item["equations"])
+                    eq_item = pg.TextItem(eq_text, anchor=(1, 0))
+                    eq_item.setPos(10, 1)  # temporary, will fix below
+                    plot.addItem(eq_item)
+
+                    # Place in top-right using viewbox
+                    def update_eq_position():
+                        vb = plot.getViewBox()
+                        rect = vb.viewRect()
+                        eq_item.setPos(rect.right(), rect.top())
+
+                    plot.sigRangeChanged.connect(lambda *_: update_eq_position())
+                    update_eq_position()
 
                 layout.addWidget(plot)
                 continue

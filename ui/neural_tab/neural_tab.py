@@ -646,33 +646,46 @@ class NeuralTab(QWidget):
         return analysis_payload
     def build_spatial_correlation_payload(self, result):
 
-        plots = []
-
-        distances = result["distances"]
-        correlations = result["correlations"]
+        distances = np.array(result["distances"])
+        correlations = np.array(result["correlations"])
+        channel_pairs = result["pairs"]
 
         slope = result["slope"]
         intercept = result["intercept"]
 
+        # ---- Ensure sorted for clean line rendering ----
+        order = np.argsort(distances)
+        distances = distances[order]
+        correlations = correlations[order]
+
         fit = slope * distances + intercept
 
-        plots.append({
-            "kind": "scatter",
-            "title": "Spatial Spike Correlation vs Distance",
-            "x": distances,
-            "y": correlations,
-            "xlabel": "Distance (mm)",
-            "ylabel": "Normalized Max Cross-Correlation",
-        })
+        plots = [
+            {
+                "kind": "plot",
+                "title": "Spatial Spike Correlation vs Distance",
+                "xlabel": "Distance (mm)",
+                "ylabel": "Normalized Max Cross-Correlation",
+                "grid": False,
 
-        plots.append({
-            "kind": "line",
-            "title": "Correlation Distance Fit",
-            "x": distances,
-            "y": fit,
-            "xlabel": "Distance (mm)",
-            "ylabel": "Fit"
-        })
+                "series": [
+                    {
+                        "type": "scatter",
+                        "x": distances,
+                        "y": correlations,
+                        "name": "Observed Correlation",
+                        "labels": channel_pairs
+                    },
+                    {
+                        "type": "line",
+                        "x": distances,
+                        "y": fit,
+                        "name": (f"Linear Fit: y = {slope:.4f}x + {intercept:.4f}")
+                    }
+                ],
+
+            }
+        ]
 
         return {
             "title": "Spatial Neural Correlation",
@@ -914,12 +927,12 @@ class NeuralTab(QWidget):
                 bin_width=0.002
             )                                                                   
 
-            plots = []
+            series = []
 
             for i, pair in enumerate(result["pairs"]):
-                plots.append({
-                    "kind": "line",
-                    "title": f"PI {pair[0]}-{pair[1]}",
+                series.append({
+                    "type": "line",
+                    "name": f"PI {pair[0]}-{pair[1]}",
                     "x": result["periods_min"],
                     "y": result["pi_storage"][pair],
                     "xlabel": "Time (min)",
@@ -928,7 +941,15 @@ class NeuralTab(QWidget):
 
             analysis_payload = {
                 "title": "Rolling Propagation Index",
-                "plots": plots
+                "plots": [
+                    {
+                        "kind": "plot",
+                        "title": "Rolling Propagation Index",
+                        "series": series,
+                        "xlabel": "Time (min)",
+                        "ylabel": "Propagation Index"
+                    }
+                ]
             }
             self.analysis_window = AnalysisWindow(analysis_payload, self)
             self.analysis_window.show()
