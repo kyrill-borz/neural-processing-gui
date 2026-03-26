@@ -1,9 +1,10 @@
 import pyqtgraph as pg
 from PyQt5.QtWidgets import (
-    QWidget, QVBoxLayout, QFormLayout,
+    QProgressDialog, QWidget, QVBoxLayout, QFormLayout,
     QLineEdit, QCheckBox, QDialogButtonBox,
     QFileDialog, QMessageBox, QGridLayout, QComboBox, QLabel
 )
+from PyQt5.QtCore import Qt
 from ui.widgets.CollapsibleBox import CollapsibleBox
 import numpy as np
 class ImportTab(QWidget):
@@ -78,13 +79,23 @@ class ImportTab(QWidget):
         path, _ = QFileDialog.getOpenFileName(self, "Select Data File")
         if not path:
             return
+# Create and show progress dialog
+        progress = QProgressDialog("Loading data...", "Cancel", 0, 0, self)
+        progress.setWindowModality(Qt.WindowModal)
+        progress.setWindowTitle("Loading")
+        progress.setMinimumDuration(0)  # Show immediately
+        progress.setValue(0)  # Indeterminate progress
+        progress.show()
 
         try:
             data = self.controller.load_data(path, float(self.startTime.text()), float(self.duration.text()))
         except Exception as e:
+            progress.close()
             QMessageBox.critical(self, "Load Error", str(e))
             return
 
+
+        progress.close()
         self.pathEdit.setText(path)
         y = data.original["ch_27"].to_numpy()
         self.plot_raw_signal.plot(y)
