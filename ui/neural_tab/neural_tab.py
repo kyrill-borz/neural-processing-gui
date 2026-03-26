@@ -789,6 +789,15 @@ class NeuralTab(QWidget):
                             "max": 20,
                             "step": 0.1,
                         },
+                        "maximum_height_std": {
+                            "type": "float",
+                            "label": "Maximum Spike Threshold (std)",
+                            "default": 10.0,
+                            "min": 0,
+                            "max": 50,
+                            "step": 0.1,
+                        },
+
                         "window_ms": {
                             "type": "int",
                             "label": "Waveform Window (ms)",
@@ -806,6 +815,7 @@ class NeuralTab(QWidget):
             results = self.controller.data.multi_channel_spike_analysis_polars(
                 channels=params["channels"],
                 height_std=params["threshold_std"],
+                maximum_height_std=params["maximum_height_std"],
                 min_distance_ms=params["window_ms"]
             )
             analysis_payload = self.build_multi_channel_dashboard(results, fs=20000)
@@ -828,6 +838,14 @@ class NeuralTab(QWidget):
                             "max": 20,
                             "step": 0.1,
                         },
+                        "maximum_height_std": {
+                            "type": "float",
+                            "label": "Maximum Spike Threshold (std)",
+                            "default": 10.0,
+                            "min": 0,
+                            "max": 50,
+                            "step": 0.1,
+                        },
                         "window_ms": {
                             "type": "int",
                             "label": "Waveform Window (ms)",
@@ -845,6 +863,7 @@ class NeuralTab(QWidget):
             spike_results = self.controller.data.multi_channel_spike_analysis_polars(
                 channels=params["channels"],
                 height_std=params["threshold_std"],
+                maximum_height_std=params["maximum_height_std"],
                 min_distance_ms=params["window_ms"]
             )
             spike_trains = {
@@ -925,6 +944,14 @@ class NeuralTab(QWidget):
                             "max": 20,
                             "step": 0.1,
                         },
+                        "maximum_height_std": {
+                            "type": "float",
+                            "label": "Maximum Spike Threshold (std)",
+                            "default": 10.0,
+                            "min": 0,
+                            "max": 50,
+                            "step": 0.1,
+                        },
                         "window_ms": {
                             "type": "int",
                             "label": "Waveform Window (ms)",
@@ -949,10 +976,11 @@ class NeuralTab(QWidget):
             spike_results = self.controller.data.multi_channel_spike_analysis_polars(
                 channels=params["channels"],
                 height_std=params["threshold_std"],
+                maximum_height_std=params["maximum_height_std"],
                 min_distance_ms=params["window_ms"]
             )
             spike_trains = {
-                ch: spike_results[ch]["indices"]
+                ch: spike_results[ch]["times"] * 1000
                 for ch in spike_results
             }
             result = self.controller.data.rolling_propagation_index(
