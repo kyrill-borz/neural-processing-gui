@@ -10,6 +10,8 @@ from PyQt5.QtWidgets import (
     QLabel,
     QListWidget,
     QListWidgetItem,
+    QPushButton,
+    QFileDialog,
 )
 from PyQt5.QtCore import Qt
 
@@ -24,6 +26,7 @@ class ParameterDialog(QDialog):
 
         self.param_spec = param_spec
         self.widgets = {}
+        self.file_path = None
 
         self.main_layout = QVBoxLayout(self)
         self.form_layout = QFormLayout()
@@ -90,6 +93,10 @@ class ParameterDialog(QDialog):
                 widget = QCheckBox()
                 widget.setChecked(spec.get("default", False))
 
+            elif field_type == "file":
+                widget = QPushButton(f"Select {spec.get('file_type', 'File')}...")
+                widget.clicked.connect(lambda checked, k=key: self._select_file(k, spec.get("file_filter", "All Files (*)")))
+
             else:
                 widget = QLabel("Unsupported type")
 
@@ -97,6 +104,17 @@ class ParameterDialog(QDialog):
             self.form_layout.addRow(label, widget)
 
     # ---------------------------------------------------------
+    def _select_file(self, key, file_filter):
+        """Open file dialog and store the selected file path."""
+        file_path, _ = QFileDialog.getOpenFileName(
+            self,
+            f"Select {key}",
+            "",
+            file_filter
+        )
+        if file_path:
+            self.file_path = file_path
+            self.widgets[key].setText(f"Selected: {file_path.split('/')[-1]}")
 
     def get_values(self):
 
@@ -123,5 +141,7 @@ class ParameterDialog(QDialog):
                     if item.checkState() == Qt.Checked:
                         checked_items.append(item.text())
                 values[key] = checked_items
-
+            elif isinstance(widget, QPushButton) and self.param_spec[key].get("type") == "file":
+                values[key] = self.file_path
+                
         return values
