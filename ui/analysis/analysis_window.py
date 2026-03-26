@@ -18,6 +18,16 @@ class AnalysisWindow(QMainWindow):
 
         self.time_reference_plot = None
 
+        self.COLOR_CYCLE = [
+            "#1f77b4",  # blue
+            "#d62728",  # red
+            "#2ca02c",  # green
+            "#ff7f0e",  # orange
+            "#9467bd",  # purple
+            "#8c564b",  # brown
+            "#e377c2",  # pink
+            "#7f7f7f",  # gray
+        ]
         for item in result["plots"]:
 
             # ---------- TEXT ----------
@@ -39,21 +49,23 @@ class AnalysisWindow(QMainWindow):
 
                 legend = plot.addLegend()
 
-                for series in item.get("series", []):
+                for i, series in enumerate(item.get("series", [])):
                     if "x" in series:
                         x = series["x"]
                     y = series["y"]
                     name = series.get("name", None)
+                    colour = series.get("color", self.COLOR_CYCLE[i % len(self.COLOR_CYCLE)])
+                    pen = pg.mkPen(color=colour, width=2)
 
                     # ---- LINE ----
                     if series["type"] == "line":
-                        plot.plot(x, y, name=name)
+                        plot.plot(x, y, name=name, pen=pen)
 
                     # ---- SCATTER ----
                     elif series["type"] == "scatter":
                         scatter = plot.plot(
                             x, y,
-                            pen=None,
+                            pen=pen,
                             symbol="o",
                             name=name
                         )
