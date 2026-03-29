@@ -282,6 +282,22 @@ class NeuralTab(QWidget):
                     ]
                 }
             else:
+                series = self.controller.data.referenced[params["channel"]]
+                fs = 20000
+                max_points = 5000  # Safe visual size
+                # ---- Downsample safely ----
+            
+                length = len(series)
+
+                if length > max_points:
+                    step = length // max_points
+                    series_ds = series.gather_every(step)
+                else:
+                    step = 1
+                    series_ds = series
+                    
+                x_ds = np.arange(len(series_ds))* step / fs
+                y_channel = series_ds.to_numpy()
                 payload = {
                     "title": f"Spike Analysis – {self.controller.get_channel_name(params['channel'])}",
                     "plots": [
@@ -293,6 +309,11 @@ class NeuralTab(QWidget):
                                     "x": spike_data["times"],
                                     "y": spike_data["peaks"],
                                     "type": "scatter"
+                                }, {
+                                    "x": x_ds,
+                                    "y": y_channel,
+                                    "type": "line"
+
                                 }
                             ],
                             "xlabel": "Time (s)",
@@ -306,7 +327,7 @@ class NeuralTab(QWidget):
                     payload["plots"].append({
                         "title": "Average Spike Waveform",
                         "series":[{
-                            "x": np.arange(len(spike_data["mean_waveform"])),
+                            "x": np.arange(len(spike_data["mean_waveform"]))/fs*1000,
                             "y": spike_data["mean_waveform"],
                             "type": "line"
                         }],
