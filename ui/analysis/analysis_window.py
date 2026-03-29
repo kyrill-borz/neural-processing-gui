@@ -65,7 +65,7 @@ class AnalysisWindow(QMainWindow):
                     elif series["type"] == "scatter":
                         scatter = plot.plot(
                             x, y,
-                            pen=pen,
+                            pen=None,
                             symbol="o",
                             name=name
                         )
