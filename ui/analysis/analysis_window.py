@@ -1,4 +1,4 @@
-from PyQt5.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QLabel, QScrollArea
+from PyQt5.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QLabel, QScrollArea, QFileDialog
 from PyQt5.QtCore import Qt, QRectF
 import pyqtgraph as pg
 import numpy as np
@@ -16,6 +16,7 @@ class AnalysisWindow(QMainWindow):
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
 
+        self.result = result
         self.time_reference_plot = None
 
         self.COLOR_CYCLE = [
@@ -148,3 +149,16 @@ class AnalysisWindow(QMainWindow):
 
         scroll.setWidget(central)
         self.setCentralWidget(scroll)
+    
+    def export_JSON(self):
+        folder_path = QFileDialog.getExistingDirectory(
+            caption="Select Export Folder"
+        )
+        if not folder_path:
+            return
+        json = self.result
+        with open(f"{folder_path}/data.json", 'w') as f:
+            json.dump(json, f)
+    
+
+
