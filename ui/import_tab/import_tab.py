@@ -97,7 +97,18 @@ class ImportTab(QWidget):
 
         progress.close()
         self.pathEdit.setText(path)
-        y = data.original["ch_27"].to_numpy()
+        
+        # Handle LazyFrame or DataFrame
+        if hasattr(data.original, 'collect'):
+            # LazyFrame - need to collect first
+            y = data.original.select("ch_27").collect().to_series().to_numpy().ravel()
+        elif hasattr(data.original, 'select'):
+            # DataFrame
+            y = data.original.select("ch_27").to_series().to_numpy().ravel()
+        else:
+            # Fallback for other formats
+            y = data.original["ch_27"].to_numpy()
+        
         self.plot_raw_signal.plot(y)
         self.plot_raw_signal.getAxis('bottom').setScale(1/20000)
         print(y)
@@ -110,7 +121,18 @@ class ImportTab(QWidget):
 
         if self.filterType.currentText() != "No filter":
             self.controller.apply_filter(self.filterType.currentText())
-            y_f = data.filtered["ch_27"].to_numpy()
+            
+            # Handle LazyFrame or DataFrame
+            if hasattr(data.filtered, 'collect'):
+                # LazyFrame - need to collect first
+                y_f = data.filtered.select("ch_27").collect().to_series().to_numpy().ravel()
+            elif hasattr(data.filtered, 'select'):
+                # DataFrame
+                y_f = data.filtered.select("ch_27").to_series().to_numpy().ravel()
+            else:
+                # Fallback for other formats
+                y_f = data.filtered["ch_27"].to_numpy()
+            
             self.plot_filt_signal.plot(y_f)
             self.plot_filt_signal.getAxis('bottom').setScale(1/20000)
             freq_data = self.controller.data.compute_frequency_content(
