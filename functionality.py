@@ -329,7 +329,7 @@ def plotfiltered(record, plot=True):
             colorbar_ticks_filt= [5, 0, -50, -100, -150, -200] # in vivo: [5, 0, -50, -100, -150, -200]#, -250] #[-10, -35]  ex vivo: [-50, -100]
         
         #'''
-        start_time = record.filtered["time"][0] \
+        start_time = record.filtered.select("time").to_series()[0] \
             + datetime.timedelta(seconds=float((start_min - start_min) * 60))
 
         # End time (10 minutes later)
