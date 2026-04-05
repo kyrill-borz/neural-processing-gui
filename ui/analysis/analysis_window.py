@@ -1,4 +1,4 @@
-from PyQt5.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QLabel, QScrollArea, QFileDialog
+from PyQt5.QtWidgets import QMainWindow, QPushButton, QWidget, QVBoxLayout, QLabel, QScrollArea, QFileDialog
 from PyQt5.QtCore import Qt, QRectF
 import pyqtgraph as pg
 import numpy as np
@@ -115,6 +115,7 @@ class AnalysisWindow(QMainWindow):
                     update_eq_position()
 
                 layout.addWidget(plot)
+
                 continue
 
             # ---------- IMAGE (HEATMAP / SPECTROGRAM / ISI) ----------
@@ -146,7 +147,10 @@ class AnalysisWindow(QMainWindow):
 
                 layout.addWidget(graphics)
                 continue
-
+        
+        self.export_button = QPushButton("Export JSON")
+        self.export_button.clicked.connect(self.export_JSON)
+        layout.addWidget(self.export_button)
         scroll.setWidget(central)
         self.setCentralWidget(scroll)
     
@@ -159,6 +163,6 @@ class AnalysisWindow(QMainWindow):
         json = self.result
         with open(f"{folder_path}/data.json", 'w') as f:
             json.dump(json, f)
-    
+
 
 
