@@ -85,13 +85,26 @@ class ProcessingTab(QWidget):
 
             # Get spike data for selected channels
             series = []
-            data = self.controller.data.referenced[channel]
+            # Handle LazyFrame or DataFrame
+            if hasattr(self.controller.data.referenced, 'select'):
+                # LazyFrame or DataFrame
+                data = self.controller.data.referenced
+                time_data = data.select("time").collect().to_series()
+                channel_data = {}
+                for ch in selected_channel_names:
+                    channel_data[ch] = data.select(ch).collect().to_series()
+            else:
+                # Fallback for other formats
+                data = self.controller.data.referenced[channel]
+                time_data = data["time"]
+                channel_data = data
+            
             for i, channel in enumerate(selected_channel_names):
                 series.append({
                     "type": "line",
                     "name": channel,
-                    "x": data["time"],
-                    "y": data[channel],
+                    "x": time_data,
+                    "y": channel_data[channel],
                 })
 
             analysis_payload = {

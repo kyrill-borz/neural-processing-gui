@@ -116,10 +116,23 @@ class NeuralTab(QWidget):
 
         for idx, ch in enumerate(selected_channels):
 
-            if ch not in df.columns:
-                continue
-
-            series = df[ch]
+            # Handle LazyFrame or DataFrame
+            if hasattr(df, 'collect'):
+                # LazyFrame - need to collect first
+                if ch not in df.columns:
+                    continue
+                series = df.select(ch).collect().to_series()
+            elif hasattr(df, 'select'):
+                # DataFrame
+                if ch not in df.columns:
+                    continue
+                series = df.select(ch).to_series()
+            else:
+                # Fallback for other formats
+                if ch not in df.columns:
+                    continue
+                series = df[ch]
+            
             length = len(series)
 
             if length > max_points:
@@ -282,7 +295,14 @@ class NeuralTab(QWidget):
                     ]
                 }
             else:
-                series = self.controller.data.referenced[params["channel"]]
+                # Handle LazyFrame or DataFrame
+                if hasattr(self.controller.data.referenced, 'select'):
+                    # LazyFrame or DataFrame
+                    series = self.controller.data.referenced.select(params["channel"]).collect().to_series()
+                else:
+                    # Fallback for other formats
+                    series = self.controller.data.referenced[params["channel"]]
+                
                 fs = 20000
                 max_points = 5000  # Safe visual size
                 # ---- Downsample safely ----
@@ -890,7 +910,8 @@ class NeuralTab(QWidget):
             spike_trains = {
                 ch: spike_results[ch]["indices"]
                 for ch in spike_results
-            }
+            } if spike_results is not None else {}
+            
             corr_result = self.controller.data.spatial_spike_correlation(
                 spike_trains,
                 correct_order=[16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31]
