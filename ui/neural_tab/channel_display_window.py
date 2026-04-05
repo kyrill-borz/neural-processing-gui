@@ -37,7 +37,17 @@ class ChannelDisplayWindow(QWidget):
     def populate_channels(self):
 
         df = self.controller.data.filtered
-        channels = [col for col in df.columns if col.startswith('ch')]
+        
+        # Handle LazyFrame vs DataFrame
+        if hasattr(df, 'collect'):
+            # LazyFrame - need to collect for operations
+            df_collected = df.collect()
+            channels = [col for col in df_collected.columns if col.startswith('ch')]
+        else:
+            # DataFrame
+            df_collected = df
+            channels = [col for col in df.columns if col.startswith('ch')]
+            
         print(channels)
         fs = 20000
         max_points = 5000  # Safe visual size
@@ -47,7 +57,13 @@ class ChannelDisplayWindow(QWidget):
             row_layout = QHBoxLayout()
 
             # ---- Downsample safely ----
-            series = df[ch]
+            if hasattr(df, 'collect'):
+                # LazyFrame - collect the specific column
+                series = df.select(ch).collect().to_series()
+            else:
+                # DataFrame
+                series = df[ch]
+                
             length = len(series)
 
             if length > max_points:
