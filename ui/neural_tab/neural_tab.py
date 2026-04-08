@@ -217,7 +217,8 @@ class NeuralTab(QWidget):
             extract_waveforms=True,
             height_std=height_std,
             maximum_height_std=maximum_height_std,
-            min_distance_ms=window_ms,
+            min_distance_ms=2,
+            waveform_width_ms=window_ms,
         )
 
         self._spike_cache[channel] = {
@@ -304,7 +305,7 @@ class NeuralTab(QWidget):
                     series = self.controller.data.referenced[params["channel"]]
                 
                 fs = 20000
-                max_points = 5000  # Safe visual size
+                max_points = 10000  # Safe visual size
                 # ---- Downsample safely ----
             
                 length = len(series)

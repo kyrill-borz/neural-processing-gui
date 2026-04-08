@@ -1,3 +1,6 @@
+
+
+
 class AppController:
     def __init__(self):
         self.data = None
@@ -5,11 +8,18 @@ class AppController:
         self.channel_names = {}
 
     def load_data(self, path, start_min=0, dur_min=10):
-        from functionality import apploadfilepolars, filt_config
+        from functionality import filt_config
+        from utils.Neurogram import Recording
         self.filt_config = filt_config
         self.filt_config['W'] = [300, 500] 
         self.filt_config['Butterworth']['Wn'] = filt_config['W']
-        self.data = apploadfilepolars(start_min, dur_min, path, map_path=r"C:\Users\kyril\Documents\Cambridge\NeuralGui\neural-processing-gui\data\map_linear.csv")
+        self.data = Recording.open_record(
+            path,
+            start=start_min,
+            dur=dur_min,
+            map_path=r".\data\map_linear.csv",
+            verbose=0
+        )
         self.data.filter_ch = ["ch_24","ch_25","ch_26","ch_27", "ch_28", "ch_29", "ch_30", "ch_31"]
         self.make_channel_names()
         return self.data
