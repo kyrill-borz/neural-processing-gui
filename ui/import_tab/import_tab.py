@@ -22,6 +22,9 @@ class ImportTab(QWidget):
         self.pathEdit = QLineEdit(readOnly=True)
         self.filterCheck = QCheckBox("Filter",)
         self.seeDataCheck = QCheckBox("See Data")
+        self.portSelect = QComboBox()
+        self.portSelect.addItems(["Port A", "Port B"])
+
         self.startTimeLabel = QLabel("Start Time (mins)")
         self.startTime = QLineEdit("0")
         self.duration = QLineEdit("10")
@@ -51,7 +54,7 @@ class ImportTab(QWidget):
         form.addRow("Data Path:", self.pathEdit)
         options_layout.addWidget(self.text, 0, 0)
         options_layout.addWidget(self.filterType, 0, 1)
-        options_layout.addWidget(self.seeDataCheck, 0, 2)
+        options_layout.addWidget(self.portSelect, 0, 2)
         options_layout.addWidget(self.startTimeLabel, 1, 0)
         options_layout.addWidget(self.startTime, 1, 1)
         options_layout.addWidget(self.durationLabel, 1, 2)
@@ -88,7 +91,7 @@ class ImportTab(QWidget):
         progress.show()
 
         try:
-            data = self.controller.load_data(path, float(self.startTime.text()), float(self.duration.text()))
+            data = self.controller.load_data(path, float(self.startTime.text()), float(self.duration.text()), port=self.portSelect.currentText())
         except Exception as e:
             progress.close()
             QMessageBox.critical(self, "Load Error", str(e))

@@ -78,11 +78,9 @@ downsample = 1  # Chronic recordings from VN sampled at 20KHz
 # Start and duration in samples (multiply by freq if needed)
 start_min = 20
 dur_min = 5
-port = 'Port B'
 
 # Example hardcoded for now
 day = 'Day4'
-print(port)
 
 fs = 20000
 start = fs * 60 * start_min
@@ -139,42 +137,42 @@ filt_config = {
 # config_text.append('Channels: %s' %record.channels)
 # config_text.append('filt_config: %s' %json.dumps(filt_config))
 
-def apploadfile(path=None, map_path=None):
+# def apploadfile(path=None, map_path=None):
 
-    if dur_min == 0:
-        dur= None 
-    else: 
-        dur = fs*60*dur_min       
+#     if dur_min == 0:
+#         dur= None 
+#     else: 
+#         dur = fs*60*dur_min       
         
-    if load_raw:
-        # Load original raw pkl/parquet
-        record = Recording.open_record(path, start=start, dur=dur, 
-                                    load_from_file=load_from_file, 
-                                    load_multiple_files=True,
-                                    downsample=downsample,
-                                    port=port  ,  # Select recording port
-                                    map_path=map_path,
-                                    day=day,
-                                    verbose=0)
-    else:
-        # Load filtered pkl
-        filepath = askopenfile(initialdir=path, title="Select previously stored data file", 
-                                    filetypes=(   [("Pickle Files", "*.pkl"), 
-                                                ("Parquet Files", "*.parquet"),
-                                                ("All Files", "*.*")]))  # Add more file types if needed
-        try:
-            record = pd.read_pickle(filepath.name)
-        except: 
-            record = pd.read_parquet(filepath.name) # 
-        print(record.recording)
-        record.recording.name = 'HF_filtered' # Change name
+#     if load_raw:
+#         # Load original raw pkl/parquet
+#         record = Recording.open_record(path, start=start, dur=dur, 
+#                                     load_from_file=load_from_file, 
+#                                     load_multiple_files=True,
+#                                     downsample=downsample,
+#                                     port=port  ,  # Select recording port
+#                                     map_path=map_path,
+#                                     day=day,
+#                                     verbose=0)
+#     else:
+#         # Load filtered pkl
+#         filepath = askopenfile(initialdir=path, title="Select previously stored data file", 
+#                                     filetypes=(   [("Pickle Files", "*.pkl"), 
+#                                                 ("Parquet Files", "*.parquet"),
+#                                                 ("All Files", "*.*")]))  # Add more file types if needed
+#         try:
+#             record = pd.read_pickle(filepath.name)
+#         except: 
+#             record = pd.read_parquet(filepath.name) # 
+#         print(record.recording)
+#         record.recording.name = 'HF_filtered' # Change name
 
-    record.channels = 'all' #'5, 24, 26, 27, 28' # # OldFFC:     NewFFC: 5, 20, 24, 26, 27, 28
+#     record.channels = 'all' #'5, 24, 26, 27, 28' # # OldFFC:     NewFFC: 5, 20, 24, 26, 27, 28
 
-    print("Time elapsed in loading: {} seconds".format(time.time()-time_start)) 
-    return record
+#     print("Time elapsed in loading: {} seconds".format(time.time()-time_start)) 
+#     return record
 
-def apploadfilepolars(start_min, dur_min, path=None, map_path=None):
+def apploadfilepolars(start_min, dur_min, path=None, map_path=None, port='Port A'):
     fs = 20000
     start = fs * 60 * start_min
     dur = None if dur_min == 0 else fs * 60 * dur_min
@@ -218,7 +216,7 @@ def apploadfilepolars(start_min, dur_min, path=None, map_path=None):
         if hasattr(record, "recording"):
             record.recording.name = 'HF_filtered'
 
-    record.channels = 'all'
+    record.channels = 'all'  # or specify channels as needed
     print(f"Time elapsed in loading: {time.time() - time_start:.2f} seconds")
 
     return record
