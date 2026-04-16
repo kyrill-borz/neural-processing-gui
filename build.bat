@@ -13,7 +13,7 @@ if exist ".venv\Scripts\activate.bat" (
 )
 
 echo Building NeuralGui with PyInstaller...
-python -m PyInstaller NeuralGui.spec
+python -m PyInstaller --clean --noconfirm NeuralGui.spec
 
 if errorlevel 1 (
     echo.
