@@ -382,9 +382,17 @@ class NeuralTab(QWidget):
                     "threshold_std": {
                         "type": "float",
                         "label": "Spike Threshold (std)",
-                        "default": 4.5,
+                        "default": 2.5,
                         "min": 0,
                         "max": 20,
+                        "step": 0.1,
+                    },
+                    "maximum_height_std": {
+                        "type": "float",
+                        "label": "Maximum Spike Threshold (std)",
+                        "default": 7,
+                        "min": 0,
+                        "max": 50,
                         "step": 0.1,
                     },
                     "window_ms": {
@@ -397,14 +405,14 @@ class NeuralTab(QWidget):
                     "isi_bins_ms": {
                         "type": "int",
                         "label": "ISI Bin Size (ms)",
-                        "default": 10,
+                        "default": 1,
                         "min": 1,
                         "max": 100,
                     },
                     "window_size_sec": {
                         "type": "int",
                         "label": "Time Window Size (s)",
-                        "default": 60,
+                        "default": 10,
                         "min": 10,
                         "max": 600,
                     },
@@ -419,15 +427,16 @@ class NeuralTab(QWidget):
                 spike_data = self.get_spike_data(
                     channel=params["channel"],
                     height_std=params["threshold_std"],
+                    maximum_height_std=params["maximum_height_std"],
                     window_ms=params["window_ms"]
                 )
                 spike_times = spike_data["times"].to_numpy()
                 isi_result = self.controller.data.compute_isi_distribution_over_time(
-                    spike_times_ms=spike_times,
+                    spike_times=spike_times,
                     bin_size_ms=params["isi_bins_ms"],
                     window_seconds=params["window_size_sec"]
                 )
-
+                print(isi_result)
                 analysis_payload = {
                     "title": "ISI Distribution Over Time",
                     "plots": [
