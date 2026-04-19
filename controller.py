@@ -39,7 +39,7 @@ class AppController:
     def make_channel_names(self):
         for i, channel in enumerate(self.data.filter_ch):
             try:
-                self.channel_names[channel] = channel.replace("ch_", "Channel ") + (f" ({round(self.data.information['Z_magnitude_KOhms'].iloc[i],3)})" if self.data.information is not [] else " kOhms")
+                self.channel_names[channel] = channel.replace("ch_", "Channel ") + (f" ({round(self.data.information['Z_magnitude_KOhms'].iloc[i],3)} KOhms)" if self.data.information is not [] else " kOhms")
             except:
                 self.channel_names[channel] = channel.replace("ch_", "Channel ")
                 
