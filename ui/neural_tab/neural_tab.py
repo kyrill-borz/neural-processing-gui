@@ -48,7 +48,7 @@ class NeuralTab(QWidget):
             "Type of Multi-Channel Analysis",
             "Multiple Channel Spike Detection",
             "Cross Correlation of Spike Trains",
-            "Directionality Analysis",
+            #"Directionality Analysis",
             "Propagation Coefficient",
         ])
         layout.addWidget(self.multiAnalysisCombo, 1, 2)
