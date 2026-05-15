@@ -15,11 +15,9 @@ tmp_ret = collect_all('matplotlib')
 datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
 tmp_ret = collect_all('polars')
 datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
-tmp_ret = collect_all('dask')
-datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
 tmp_ret = collect_all('pyarrow')
 datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
-hiddenimports += ['pyarrow','dask.array', 'dask.dataframe', 'dask.bag', 'dask.delayed', 'numpy.core', 'numpy.linalg', 'numpy.fft', 'numpy.core.multiarray', 'pkg_resources', 'numpy.core._methods','numpy.linalg.lapack_lite']
+hiddenimports += ['pyarrow','dask','dask.array', 'dask.dataframe', 'dask.bag', 'dask.delayed', 'numpy.core', 'numpy.linalg', 'numpy.fft', 'numpy.core.multiarray', 'pkg_resources', 'numpy.core._methods','numpy.linalg.lapack_lite']
 
 datas += copy_metadata('numpy')
 datas += copy_metadata('pandas')
@@ -41,7 +39,7 @@ a = Analysis(
     hooksconfig={},
     runtime_hooks=[ 'rthook_dll.py'],
     excludes=[],
-    noarchive=True,
+    noarchive=False,
     optimize=0,
 )
 pyz = PYZ(a.pure)
