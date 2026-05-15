@@ -217,7 +217,7 @@ class NeuralTab(QWidget):
             extract_waveforms=True,
             height_std=height_std,
             maximum_height_std=maximum_height_std,
-            min_distance_ms=window_ms,
+            waveform_width_ms=window_ms,
         )
 
         self._spike_cache[channel] = {
