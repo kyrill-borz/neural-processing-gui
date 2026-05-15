@@ -470,12 +470,20 @@ class NeuralTab(QWidget):
                             "label": "Channel",
                             "default": self.controller.data.filter_ch[0] if self.controller.data.filter_ch else None,
                         },
-                        "threshold_std": {
+                        "min_threshold_std": {
                             "type": "float",
                             "label": "Spike Threshold (std)",
-                            "default": 4.5,
+                            "default": 2.5,
                             "min": 0,
                             "max": 20,
+                            "step": 0.1,
+                        },
+                        "maximum_height_std": {
+                            "type": "float",
+                            "label": "Maximum Spike Threshold (std)",
+                            "default": 10.0,
+                            "min": 0,
+                            "max": 50,
                             "step": 0.1,
                         },
                         "window_ms": {
@@ -493,7 +501,10 @@ class NeuralTab(QWidget):
                     return  # User cancelled
 
             params = dialog.get_values()
-            spike_data = self.get_spike_data(params["channel"], params["threshold_std"], params["window_ms"])
+            spike_data = self.get_spike_data(params["channel"], 
+                                             height_std=params["min_threshold_std"], 
+                                             maximum_height_std=params["maximum_height_std"], 
+                                             window_ms=params["window_ms"])
             spike_times = spike_data["times"].to_numpy()
             spike_waveforms = spike_data["waveforms"]
 
