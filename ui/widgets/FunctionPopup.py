@@ -76,7 +76,7 @@ class ParameterDialog(QDialog):
                 widget = QListWidget()
 
                 options = spec.get("options", [])
-                default = spec.get("default", [])
+                default = options# spec.get("default", [])
 
                 for opt in options:
                     item = QListWidgetItem(opt)
