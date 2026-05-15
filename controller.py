@@ -14,9 +14,10 @@ class AppController:
         self.make_channel_names()
         return self.data
 
-    def apply_filter(self, filter_type='Butterworth'):
+    def apply_filter(self, filter_type='Butterworth', filter_params=100):
         
         self.data.apply_filter = filter_type
+        self.filt_config[filter_type]['Wn'] = filter_params
         self.data.filter(
             self.data.original,
             self.data.apply_filter,

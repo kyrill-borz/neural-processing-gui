@@ -117,6 +117,12 @@ filt_config = {
             'fs': 20000,
             'btype': 'lowpass', #'bandpass', #'hp'  #'lowpass'     # The type of filter.
     },
+    'Highpass': {
+            'N': 4,                # The order of the filter
+            'Wn' : 300,
+            'fs': 20000,
+            'btype': 'highpass', #'bandpass', #'hp'  #'lowpass'     # The type of filter.
+    },
     'butter_non_causal': {   # Not valid for real time applications
         'N': 4,                # The order of the filter
         'btype': 'bandpass', #'bandpass', #'hp'  #'lowpass'     # The type of filter.

@@ -2,10 +2,11 @@ import pyqtgraph as pg
 from PyQt5.QtWidgets import (
     QProgressDialog, QWidget, QVBoxLayout, QFormLayout,
     QLineEdit, QCheckBox, QDialogButtonBox,
-    QFileDialog, QMessageBox, QGridLayout, QComboBox, QLabel
+    QFileDialog, QMessageBox, QGridLayout, QComboBox, QLabel, QDialog
 )
 from PyQt5.QtCore import Qt
-from ui.widgets.CollapsibleBox import CollapsibleBox
+from ..widgets.CollapsibleBox import CollapsibleBox
+from ..widgets.FunctionPopup import ParameterDialog
 import numpy as np
 class ImportTab(QWidget):
     def __init__(self, controller):
@@ -34,6 +35,7 @@ class ImportTab(QWidget):
             "No Filter",
             "Butterworth",
             "Lowpass",
+            "Highpass",
             "Automatic"
         ])
         self.text = QLabel("Filter Type:")
@@ -123,8 +125,37 @@ class ImportTab(QWidget):
 
 
         if self.filterType.currentText() != "No filter":
-            self.controller.apply_filter(self.filterType.currentText())
-            
+            if self.filterType.currentText() == "Automatic":
+                pass
+            elif self.filterType.currentText() == "Butterworth":
+                 param_spec = {
+                "lowcut": {
+                    "type": "float",
+                    "label": "Low Cutoff (Hz)",
+                    "default": 300.0,
+                },   
+                "highcut": {
+                    "type": "float",
+                    "label": "High Cutoff (Hz)",
+                    "default": 500.0,
+                }
+                 }
+            else:
+                param_spec = {
+                    "cutoff": {
+                        "type": "float",
+                        "label": "Cutoff Frequency (Hz)",
+                        "default": 300.0,
+                    }
+                    }
+
+            dialog = ParameterDialog(param_spec, parent=self)
+
+            if dialog.exec_() != QDialog.Accepted:
+                return  # User cancelled
+
+            params = dialog.get_values()
+            self.controller.apply_filter(self.filterType.currentText(), filter_params = (lambda v: v[0] if len(v) == 1 else v)(list(params.values())))
             # Handle LazyFrame or DataFrame
             if hasattr(data.filtered, 'collect'):
                 # LazyFrame - need to collect first
