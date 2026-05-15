@@ -20,7 +20,10 @@ class ImportTab(QWidget):
         form = QFormLayout()
         options_box = CollapsibleBox("Import Options")
         options_layout = QGridLayout()
-        self.pathEdit = QLineEdit(readOnly=True)
+        self.pathEdit = QLineEdit()
+        self.pathEdit.setReadOnly(True)
+        self.pathEdit.setPlaceholderText("Click to select data file")
+        self.pathEdit.mousePressEvent = self._choose_file
         self.filterCheck = QCheckBox("Filter",)
         self.seeDataCheck = QCheckBox("See Data")
         self.portSelect = QComboBox()
@@ -80,11 +83,21 @@ class ImportTab(QWidget):
         self.btns.accepted.connect(self.load_data)
         self.btns.rejected.connect(self.clear)
 
-    def load_data(self):
+    def _choose_file(self, event):
         path, _ = QFileDialog.getOpenFileName(self, "Select Data File")
+        if path:
+            self.pathEdit.setText(path)
+        QLineEdit.mousePressEvent(self.pathEdit, event)
+
+    def load_data(self):
+        path = self.pathEdit.text()
         if not path:
-            return
-# Create and show progress dialog
+            path, _ = QFileDialog.getOpenFileName(self, "Select Data File")
+            if not path:
+                return
+            self.pathEdit.setText(path)
+
+        # Create and show progress dialog
         progress = QProgressDialog("Loading data...", "Cancel", 0, 0, self)
         progress.setWindowModality(Qt.WindowModal)
         progress.setWindowTitle("Loading")
