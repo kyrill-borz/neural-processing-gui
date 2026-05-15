@@ -8,16 +8,16 @@ class CollapsibleBox(QWidget):
         super().__init__(parent)
 
         self.toggle_button = QToolButton(
-            text=title, checkable=True, checked=False
+            text=title, checkable=True, checked=True
         )
         self.toggle_button.setToolButtonStyle(
             Qt.ToolButtonTextBesideIcon
         )
-        self.toggle_button.setArrowType(Qt.RightArrow)
+        self.toggle_button.setArrowType(Qt.DownArrow)
         self.toggle_button.clicked.connect(self.on_toggle)
 
         self.content = QWidget()
-        self.content.setMaximumHeight(0)
+        self.content.setMaximumHeight(self.content.sizeHint().height())
         self.content.setSizePolicy(
             QSizePolicy.Expanding, QSizePolicy.Fixed
         )
