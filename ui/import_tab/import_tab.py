@@ -172,20 +172,20 @@ class ImportTab(QWidget):
                 self.controller.apply_filter(self.filterType.currentText(), filter_params = (lambda v: v[0] if len(v) == 1 else v)(list(params.values())))
             else:
                 self.controller.apply_filter(self.filterType.currentText())
-                
+
             # Handle LazyFrame or DataFrame
             if hasattr(data.filtered, 'collect'):
                 # LazyFrame - need to collect first
-                y_f = data.filtered.select("ch_27").collect().to_series().to_numpy().ravel()
+                y_f = data.filtered.select(self.controller.data.filter_ch[0]).collect().to_series().to_numpy().ravel()
             elif hasattr(data.filtered, 'select'):
                 # DataFrame
-                y_f = data.filtered.select("ch_27").to_series().to_numpy().ravel()
+                y_f = data.filtered.select(self.controller.data.filter_ch[0]).to_series().to_numpy().ravel()
             else:
                 # Fallback for other formats
-                y_f = data.filtered["ch_27"].to_numpy()
+                y_f = data.filtered[self.controller.data.filter_ch[0]].to_numpy()
             
             self.plot_filt_signal.plot(y_f)
-            self.plot_filt_signal.getAxis('bottom').setScale(1/20000)
+            self.plot_filt_signal.getAxis('bottom').setScale(1/self.controller.data.fs)
             freq_data = self.controller.data.compute_frequency_content(
                 signal_1d=y_f,
                 fs=self.controller.data.fs
