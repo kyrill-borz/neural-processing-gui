@@ -17,7 +17,6 @@ class CollapsibleBox(QWidget):
         self.toggle_button.clicked.connect(self.on_toggle)
 
         self.content = QWidget()
-        self.content.setMaximumHeight(self.content.sizeHint().height())
         self.content.setSizePolicy(
             QSizePolicy.Expanding, QSizePolicy.Fixed
         )
