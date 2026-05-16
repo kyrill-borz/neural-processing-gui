@@ -218,6 +218,7 @@ class NeuralTab(QWidget):
             height_std=height_std,
             maximum_height_std=maximum_height_std,
             waveform_width_ms=window_ms,
+            min_distance_ms = 1 /500 * self.controller.data.fs
         )
 
         self._spike_cache[channel] = {
@@ -877,7 +878,8 @@ class NeuralTab(QWidget):
                 channels=params["channels"],
                 height_std=params["threshold_std"],
                 maximum_height_std=params["maximum_height_std"],
-                min_distance_ms=params["window_ms"]
+                min_distance_ms=1/500 * self.controller.data.fs,
+                window_ms=params["window_ms"]
             )
             analysis_payload = self.build_multi_channel_dashboard(results, fs=20000)
 
@@ -925,7 +927,8 @@ class NeuralTab(QWidget):
                 channels=params["channels"],
                 height_std=params["threshold_std"],
                 maximum_height_std=params["maximum_height_std"],
-                min_distance_ms=params["window_ms"]
+                min_distance_ms=1/500 * self.controller.data.fs,
+                window_ms=params["window_ms"]
             )
             spike_trains = {
                 ch: spike_results[ch]["indices"]
@@ -973,7 +976,8 @@ class NeuralTab(QWidget):
             results = self.controller.data.multi_channel_spike_analysis_polars(
                 channels=params["channels"],
                 height_std=params["threshold_std"],
-                min_distance_ms=params["window_ms"]
+                min_distance_ms=1/500 * self.controller.data.fs,
+                window_ms=params["window_ms"]
             )
 
             spike_times_ms = {
@@ -1039,7 +1043,8 @@ class NeuralTab(QWidget):
                 channels=params["channels"],
                 height_std=params["threshold_std"],
                 maximum_height_std=params["maximum_height_std"],
-                min_distance_ms=params["window_ms"]
+                min_distance_ms=1/500 * self.controller.data.fs,
+                window_ms=params["window_ms"]
             )
             spike_trains = {
                 ch: spike_results[ch]["times"] * 1000
