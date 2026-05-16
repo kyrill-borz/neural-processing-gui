@@ -161,14 +161,18 @@ class ImportTab(QWidget):
                         "default": 300.0,
                     }
                     }
+            
+            if self.filterType.currentText() != "Automatic":
+                dialog = ParameterDialog(param_spec, parent=self)
 
-            dialog = ParameterDialog(param_spec, parent=self)
+                if dialog.exec_() != QDialog.Accepted:
+                    return  # User cancelled
 
-            if dialog.exec_() != QDialog.Accepted:
-                return  # User cancelled
-
-            params = dialog.get_values()
-            self.controller.apply_filter(self.filterType.currentText(), filter_params = (lambda v: v[0] if len(v) == 1 else v)(list(params.values())))
+                params = dialog.get_values()
+                self.controller.apply_filter(self.filterType.currentText(), filter_params = (lambda v: v[0] if len(v) == 1 else v)(list(params.values())))
+            else:
+                self.controller.apply_filter(self.filterType.currentText())
+                
             # Handle LazyFrame or DataFrame
             if hasattr(data.filtered, 'collect'):
                 # LazyFrame - need to collect first
