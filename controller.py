@@ -3,6 +3,7 @@ class AppController:
         self.data = None
         self.filt_config = None
         self.channel_names = {}
+        self.reverse_channel_names = {}
 
     def load_data(self, path, start_min=0, dur_min=10, port="Port A"):
         from functionality import apploadfilepolars, filt_config
@@ -43,6 +44,8 @@ class AppController:
                 self.channel_names[channel] = channel.replace("ch_", "Channel ") + (f" ({round(self.data.information['Z_magnitude_KOhms'].iloc[i],3)} KOhms)" if self.data.information is not [] else " kOhms")
             except:
                 self.channel_names[channel] = channel.replace("ch_", "Channel ")
+
+        self.reverse_channel_names = {v: k for k, v in self.channel_names.items()}
                 
     def get_channel_name(self, channel):
         return self.channel_names[channel]
