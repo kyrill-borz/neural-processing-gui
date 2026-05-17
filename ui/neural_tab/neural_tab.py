@@ -10,6 +10,8 @@ class NeuralTab(QWidget):
         self.controller = controller
         self._build_ui()
         self._last_ref_method = None
+        self.min_threshold_std = 2.5
+        self.maximum_height_std = 10.0
 
     def _build_ui(self):
         layout = QGridLayout(self)
@@ -231,19 +233,19 @@ class NeuralTab(QWidget):
 
     def apply_single_channel_analysis(self):
         analysis = self.singleAnalysisCombo.currentText()
-
+        channel_names = self.controller.channel_names.values() if self.controller.channel_names else self.controller.data.filter_ch
         if analysis == "Single Channel Spike Detection":
             param_spec = {
                 "channel": {
                     "type": "choice",
-                    "options": self.controller.data.filter_ch,
+                    "options": channel_names,
                     "label": "Channel",
-                    "default": self.controller.data.filter_ch[0] if self.controller.data.filter_ch else None,
+                    "default": list(channel_names)[0] if channel_names else None,
                 },
                 "threshold_std": {
                     "type": "float",
                     "label": "Spike Threshold (std)",
-                    "default": 2.5,
+                    "default": self.min_threshold_std,
                     "min": 0,
                     "max": 20,
                     "step": 0.1,
@@ -251,7 +253,7 @@ class NeuralTab(QWidget):
                 "maximum_height_std": {
                     "type": "float",
                     "label": "Maximum Spike Threshold (std)",
-                    "default": 10.0,
+                    "default": self.maximum_height_std,
                     "min": 0,
                     "max": 50,
                     "step": 0.1,
@@ -277,6 +279,9 @@ class NeuralTab(QWidget):
                 return  # User cancelled
 
             params = dialog.get_values()
+            params["channel"] = self.controller.reverse_channel_names[params["channel"]]
+            self.min_threshold_std = params["threshold_std"]
+            self.maximum_height_std = params["maximum_height_std"]
             print("getting spike data")
             spike_data = self.get_spike_data(
                 channel=params["channel"],
@@ -304,8 +309,8 @@ class NeuralTab(QWidget):
                     # Fallback for other formats
                     series = self.controller.data.referenced[params["channel"]]
                 
-                fs = 20000
-                max_points = 5000  # Safe visual size
+                fs = self.controller.data.fs
+                max_points = 100000  # Safe visual size
                 # ---- Downsample safely ----
             
                 length = len(series)
@@ -376,14 +381,14 @@ class NeuralTab(QWidget):
                 param_spec = {
                     "channel": {
                         "type": "choice",
-                        "options": self.controller.data.filter_ch,
+                        "options": channel_names,
                         "label": "Channel",
-                        "default": self.controller.data.filter_ch[0] if self.controller.data.filter_ch else None,
+                        "default": list(channel_names)[0] if channel_names else None,
                     },
                     "threshold_std": {
                         "type": "float",
                         "label": "Spike Threshold (std)",
-                        "default": 2.5,
+                        "default": self.min_threshold_std,
                         "min": 0,
                         "max": 20,
                         "step": 0.1,
@@ -391,7 +396,7 @@ class NeuralTab(QWidget):
                     "maximum_height_std": {
                         "type": "float",
                         "label": "Maximum Spike Threshold (std)",
-                        "default": 7,
+                        "default": self.maximum_height_std,
                         "min": 0,
                         "max": 50,
                         "step": 0.1,
@@ -406,9 +411,16 @@ class NeuralTab(QWidget):
                     "isi_bins_ms": {
                         "type": "int",
                         "label": "ISI Bin Size (ms)",
-                        "default": 1,
+                        "default": 10,
                         "min": 1,
-                        "max": 100,
+                        "max": 200,
+                    },
+                    "isi_range_ms": {
+                        "type": "int",
+                        "label": "Max ISI (ms)",
+                        "default": 200,
+                        "min": 10,
+                        "max": 1000,
                     },
                     "window_size_sec": {
                         "type": "int",
@@ -425,6 +437,9 @@ class NeuralTab(QWidget):
                     return  # User cancelled
 
                 params = dialog.get_values()
+                params["channel"] = self.controller.reverse_channel_names[params["channel"]]
+                self.min_threshold_std = params["threshold_std"]
+                self.maximum_height_std = params["maximum_height_std"]
                 spike_data = self.get_spike_data(
                     channel=params["channel"],
                     height_std=params["threshold_std"],
@@ -435,7 +450,8 @@ class NeuralTab(QWidget):
                 isi_result = self.controller.data.compute_isi_distribution_over_time(
                     spike_times=spike_times,
                     bin_size_ms=params["isi_bins_ms"],
-                    window_seconds=params["window_size_sec"]
+                    window_seconds=params["window_size_sec"],
+                    isi_range_ms=params["isi_range_ms"],
                 )
                 print(isi_result)
                 analysis_payload = {
@@ -467,14 +483,14 @@ class NeuralTab(QWidget):
             param_spec = {
                         "channel": {
                             "type": "choice",
-                            "options": self.controller.data.filter_ch,
+                            "options": channel_names,
                             "label": "Channel",
-                            "default": self.controller.data.filter_ch[0] if self.controller.data.filter_ch else None,
+                            "default": list(channel_names)[0] if channel_names else None,
                         },
                         "min_threshold_std": {
                             "type": "float",
                             "label": "Spike Threshold (std)",
-                            "default": 2.5,
+                            "default": self.min_threshold_std,
                             "min": 0,
                             "max": 20,
                             "step": 0.1,
@@ -482,7 +498,7 @@ class NeuralTab(QWidget):
                         "maximum_height_std": {
                             "type": "float",
                             "label": "Maximum Spike Threshold (std)",
-                            "default": 10.0,
+                            "default": self.maximum_height_std,
                             "min": 0,
                             "max": 50,
                             "step": 0.1,
@@ -502,6 +518,9 @@ class NeuralTab(QWidget):
                     return  # User cancelled
 
             params = dialog.get_values()
+            params["channel"] = self.controller.reverse_channel_names[params["channel"]]
+            self.min_threshold_std = params["threshold_std"]
+            self.maximum_height_std = params["maximum_height_std"]
             spike_data = self.get_spike_data(params["channel"], 
                                              height_std=params["min_threshold_std"], 
                                              maximum_height_std=params["maximum_height_std"], 
@@ -835,13 +854,14 @@ class NeuralTab(QWidget):
         }
     def apply_multi_channel_analysis(self):
         analysis = self.multiAnalysisCombo.currentText()
+        channel_names = self.controller.channel_names.values() if self.controller.channel_names else self.controller.data.filter_ch
         if analysis == "Multiple Channel Spike Detection":
             param_spec = {
                         "channels": {
                             "type": "multichoice",
-                            "options": self.controller.data.filter_ch,
+                            "options": channel_names,
                             "label": "Channels",
-                            "default": self.controller.data.filter_ch[0] if self.controller.data.filter_ch else None,
+                            "default": list(channel_names)[0] if channel_names else None,
                         },
                         "threshold_std": {
                             "type": "float",
@@ -874,6 +894,7 @@ class NeuralTab(QWidget):
                     return  # User cancelled
 
             params = dialog.get_values()
+            params["channels"] = [self.controller.reverse_channel_names[ch] for ch in params["channels"]]
             results = self.controller.data.multi_channel_spike_analysis_polars(
                 channels=params["channels"],
                 height_std=params["threshold_std"],
@@ -889,14 +910,14 @@ class NeuralTab(QWidget):
             param_spec = {
                         "channels": {
                             "type": "multichoice",
-                            "options": self.controller.data.filter_ch,
+                            "options": channel_names,
                             "label": "Channels",
-                            "default": self.controller.data.filter_ch[0] if self.controller.data.filter_ch else None,
+                            "default": list(channel_names)[0] if channel_names else None,
                         },
                         "threshold_std": {
                             "type": "float",
                             "label": "Spike Threshold (std)",
-                            "default": 4.5,
+                            "default": self.min_threshold_std,
                             "min": 0,
                             "max": 20,
                             "step": 0.1,
@@ -904,7 +925,7 @@ class NeuralTab(QWidget):
                         "maximum_height_std": {
                             "type": "float",
                             "label": "Maximum Spike Threshold (std)",
-                            "default": 10.0,
+                            "default": self.maximum_height_std,
                             "min": 0,
                             "max": 50,
                             "step": 0.1,
@@ -923,6 +944,9 @@ class NeuralTab(QWidget):
                     return  # User cancelled
 
             params = dialog.get_values()
+            params["channels"] = [self.controller.reverse_channel_names[ch] for ch in params["channels"]]
+            self.min_threshold_std = params["threshold_std"]
+            self.maximum_height_std = params["maximum_height_std"]
             spike_results = self.controller.data.multi_channel_spike_analysis_polars(
                 channels=params["channels"],
                 height_std=params["threshold_std"],
@@ -947,14 +971,14 @@ class NeuralTab(QWidget):
             param_spec = {
                         "channels": {
                             "type": "multichoice",
-                            "options": self.controller.data.filter_ch,
+                            "options": channel_names,
                             "label": "Channels",
-                            "default": self.controller.data.filter_ch[0] if self.controller.data.filter_ch else None,
+                            "default": list(channel_names)[0] if channel_names else None,
                         },
                         "threshold_std": {
                             "type": "float",
                             "label": "Spike Threshold (std)",
-                            "default": 4.5,
+                            "default": self.min_threshold_std,
                             "min": 0,
                             "max": 20,
                             "step": 0.1,
@@ -973,6 +997,7 @@ class NeuralTab(QWidget):
                     return  # User cancelled
 
             params = dialog.get_values()
+            params["channels"] = [self.controller.reverse_channel_names[ch] for ch in params["channels"]]
             results = self.controller.data.multi_channel_spike_analysis_polars(
                 channels=params["channels"],
                 height_std=params["threshold_std"],
@@ -998,14 +1023,14 @@ class NeuralTab(QWidget):
             param_spec = {
                         "channels": {
                             "type": "multichoice",
-                            "options": self.controller.data.filter_ch,
+                            "options": channel_names,
                             "label": "Channels",
-                            "default": self.controller.data.filter_ch[0] if self.controller.data.filter_ch else None,
+                            "default": list(channel_names)[0] if channel_names else None,
                         },
                         "threshold_std": {
                             "type": "float",
                             "label": "Spike Threshold (std)",
-                            "default": 4.5,
+                            "default": self.min_threshold_std,
                             "min": 0,
                             "max": 20,
                             "step": 0.1,
@@ -1013,7 +1038,7 @@ class NeuralTab(QWidget):
                         "maximum_height_std": {
                             "type": "float",
                             "label": "Maximum Spike Threshold (std)",
-                            "default": 10.0,
+                            "default": self.maximum_height_std,
                             "min": 0,
                             "max": 50,
                             "step": 0.1,
@@ -1039,6 +1064,9 @@ class NeuralTab(QWidget):
                     return  # User cancelled
 
             params = dialog.get_values()
+            self.min_threshold_std = params["threshold_std"]
+            self.maximum_height_std = params["maximum_height_std"]
+            params["channels"] = [self.controller.reverse_channel_names[ch] for ch in params["channels"]]
             spike_results = self.controller.data.multi_channel_spike_analysis_polars(
                 channels=params["channels"],
                 height_std=params["threshold_std"],
