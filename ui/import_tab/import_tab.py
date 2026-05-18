@@ -138,7 +138,7 @@ class ImportTab(QWidget):
 
 
         if self.filterType.currentText() != "No filter":
-            if self.filterType.currentText() == "Automatic":
+            if self.filterType.currentText() == "Automatic" or self.filterType.currentText() == "No Filter":
                 pass
             elif self.filterType.currentText() == "Butterworth":
                  param_spec = {
@@ -162,7 +162,7 @@ class ImportTab(QWidget):
                     }
                     }
             
-            if self.filterType.currentText() != "Automatic":
+            if self.filterType.currentText() != "Automatic" and self.filterType.currentText() != "No Filter":
                 dialog = ParameterDialog(param_spec, parent=self)
 
                 if dialog.exec_() != QDialog.Accepted:
