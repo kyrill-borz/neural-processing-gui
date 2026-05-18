@@ -133,6 +133,9 @@ filt_config = {
     'notch': {
             'quality_factor': 30,
     },
+    'No Filter': {
+         
+    }
 }
 
 #filt_config['butter']['fs'] = record.fs
