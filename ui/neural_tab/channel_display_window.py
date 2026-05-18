@@ -49,8 +49,8 @@ class ChannelDisplayWindow(QWidget):
             channels = [col for col in df.columns if col.startswith('ch')]
             
         print(channels)
-        fs = 20000
-        max_points = 5000  # Safe visual size
+        fs = self.controller.data.fs
+        max_points = 10000  # Safe visual size
 
         for ch in channels:
 
