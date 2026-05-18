@@ -1,9 +1,11 @@
 import pyqtgraph as pg
 import numpy as np
 from PyQt5.QtWidgets import QDialog, QVBoxLayout, QWidget, QCheckBox, QGridLayout, QComboBox, QDialogButtonBox, QPushButton, QScrollArea
+from PyQt5.QtCore import Qt
 from ui.analysis.analysis_window import AnalysisWindow
 from ui.neural_tab.channel_display_window import ChannelDisplayWindow
 from ui.widgets.FunctionPopup import ParameterDialog
+from ui.widgets.InfoHover import InfoHoverButton
 class NeuralTab(QWidget):
     def __init__(self, controller):
         super().__init__()
@@ -16,13 +18,24 @@ class NeuralTab(QWidget):
     def _build_ui(self):
         layout = QGridLayout(self)
 
-        self.dropBadChCheck = QPushButton("Select Channels")
+        self.dropBadChCheck = QPushButton("Select Channels to Display")
         self.singleChCheck = QCheckBox("Single Channel Analysis")
         self.multiChCheck = QCheckBox("Multiple Channel Analysis")
 
         layout.addWidget(self.dropBadChCheck, 1, 0)
         layout.addWidget(self.singleChCheck, 0, 1)
+        self.singleInfo = InfoHoverButton("""Information about the different Single Channel Analysis functions:\n\n
+                                          - Referencing Only: Applies the selected referencing method without further analysis.\n\n
+                                          - Single Channel Spike Detection: Detects spikes on the selected channel using a thresholding method. Parameters include spike threshold (in standard deviations), maximum spike threshold, and waveform extraction window.\n\n
+                                          - ISI Distribution: Computes the distribution of inter-spike intervals for the detected spikes, displaying a histogram for each window.\n\n
+                                          - Clustering of Spikes: Clusters detected spikes based on their waveforms to identify potential different neuron types or units. Provides average waveform and ISI distribution for each cluster.""")
+        layout.addWidget(self.singleInfo, 0, 1, alignment=Qt.AlignRight)
         layout.addWidget(self.multiChCheck, 0, 2)
+        self.multiInfo = InfoHoverButton("""Information about the different Multiple Channel Analysis functions: \n\n
+                                         - Multiple Channel Spike Detection: Detects spikes across multiple channels simultaneously, which can help identify synchronous firing patterns. Parameters are similar to single channel spike detection but applied across all selected channels.\n\n
+                                         - Cross Correlation of Spike Trains: Analyzes the temporal relationship between spike trains from different channels to identify potential functional connectivity or synchrony.\n\n
+                                         - Propagation Coefficient: Measures the speed and direction of spike propagation across the electrode array, which can provide insights into network dynamics and connectivity.""")
+        layout.addWidget(self.multiInfo, 0, 2, alignment=Qt.AlignRight)
 
         self.refCombo = QComboBox()
         self.refCombo.addItems([
@@ -34,15 +47,31 @@ class NeuralTab(QWidget):
             "Bipolar",
             "Tripolar",
         ])
+        self.absoluteInfo = InfoHoverButton("""Referencing methods explained:\n\
+                                        - No Referencing: Uses the raw or filtered signal without any referencing.\n
+                                        - Median: Subtracts the median of the signal from each channel.\n
+                                        - Mean: Subtracts the mean of the signal from each channel.\n
+                                        - Laplacian: Applies a weighted average of the signal against its neighbors to emphasize edges and boundaries.\n
+                                        - Bipolar: Subtracts the signal from one channel from another channel.\n
+                                        - Tripolar: Combines bipolar referencing with additional channels for more complex referencing schemes. \n\n
+
+                                            Overall Explanations for this page: \n
+                                        - checking the Single/Multi Channel Analysis boxes will apply the selected analyses at particular thresholds.\n
+                                        - The "Select Channels to Display" button allows you to choose which channels to visualize in the plots below. This is useful for focusing on specific channels of interest or excluding noisy channels from the visualization.\n
+                                               
+                                        """)
+        
+        layout.addWidget(self.absoluteInfo, 4, 0, alignment=Qt.AlignLeft)
 
         self.singleAnalysisCombo = QComboBox()
         self.singleAnalysisCombo.addItems([
             "Type of Single Channel Analysis",
-            "Referencing Only",
+            #"Referencing Only",
             "Single Channel Spike Detection",
             "ISI Distribution",
             "Clustering of Spikes",
         ])
+        
         layout.addWidget(self.singleAnalysisCombo, 1, 1)
 
         self.multiAnalysisCombo = QComboBox()
@@ -1092,9 +1121,13 @@ class NeuralTab(QWidget):
             series = []
 
             for i, pair in enumerate(result["pairs"]):
+                dist = result.get("electrode_distances", {}).get(pair, None)
+                name = f"PI {pair[0]}-{pair[1]}"
+                if dist is not None:
+                    name = f"{name} ({dist:.2f} mm)"
                 series.append({
                     "type": "line",
-                    "name": f"PI {pair[0]}-{pair[1]}",
+                    "name": name,
                     "x": result["periods_min"],
                     "y": result["pi_storage"][pair],
                 })
