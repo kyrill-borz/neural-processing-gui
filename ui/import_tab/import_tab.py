@@ -8,6 +8,30 @@ from PyQt5.QtCore import Qt
 from ..widgets.CollapsibleBox import CollapsibleBox
 from ..widgets.FunctionPopup import ParameterDialog
 import numpy as np
+from pyqtgraph import AxisItem
+
+
+class LogAxisItem(AxisItem):
+    """AxisItem that formats ticks as powers-of-ten (0.1, 1, 10, 100...).
+
+    Works with a log-x view (PlotWidget.setLogMode(x=True)).
+    """
+    def tickStrings(self, values, scale, spacing):
+        strs = []
+        for v in values:
+        # Only label ticks that fall on integer log10 positions (powers of 10)
+            if abs(v - round(v)) < 1e-6:
+                val = 10 ** round(v)
+                if val >= 1:
+                    s = str(int(val))
+                else:
+                    s = ('%g' % val)
+            else:
+                s = ""
+            strs.append(s)
+        return strs
+
+
 class ImportTab(QWidget):
     def __init__(self, controller):
         super().__init__()
@@ -45,14 +69,14 @@ class ImportTab(QWidget):
         self.plot_raw_signal = pg.PlotWidget(title="Raw Signal")
         self.plot_raw_signal.getAxis('bottom').setLabel('Time (s)', color='#2a2a2a')
         self.plot_raw_signal.getAxis('left').setLabel('Amplitude (uV)', color='#2a2a2a')
-        self.plot_raw_spectrum = pg.PlotWidget(title="Raw Signal Spectrum")
+        self.plot_raw_spectrum = pg.PlotWidget(title="Raw Signal Spectrum", axisItems={'bottom': LogAxisItem(orientation='bottom')})
         self.plot_raw_spectrum.getAxis('bottom').setLabel('Frequency (Hz)', color='#2a2a2a')
         self.plot_raw_spectrum.getAxis('left').setLabel('PSD (dB/Hz)', color='#2a2a2a')
 
         self.plot_filt_signal = pg.PlotWidget(title="Filtered Signal")
         self.plot_filt_signal.getAxis('bottom').setLabel('Time (s)', color='#2a2a2a')
         self.plot_filt_signal.getAxis('left').setLabel('Amplitude (uV)', color='#2a2a2a')
-        self.plot_filt_spectrum = pg.PlotWidget(title="Filtered Signal Spectrum")
+        self.plot_filt_spectrum = pg.PlotWidget(title="Filtered Signal Spectrum", axisItems={'bottom': LogAxisItem(orientation='bottom')})
         self.plot_filt_spectrum.getAxis('bottom').setLabel('Frequency (Hz)', color='#2a2a2a')
         self.plot_filt_spectrum.getAxis('left').setLabel('PSD (dB/Hz)', color='#2a2a2a')
 
@@ -119,20 +143,22 @@ class ImportTab(QWidget):
         # Handle LazyFrame or DataFrame
         if hasattr(data.original, 'collect'):
             # LazyFrame - need to collect first
-            y = data.original.select("ch_27").collect().to_series().to_numpy().ravel()
+            y = data.original.select(self.controller.data.filter_ch[0]).collect().to_series().to_numpy().ravel()
         elif hasattr(data.original, 'select'):
             # DataFrame
-            y = data.original.select("ch_27").to_series().to_numpy().ravel()
+            y = data.original.select(self.controller.data.filter_ch[0]).to_series().to_numpy().ravel()
         else:
             # Fallback for other formats
-            y = data.original["ch_27"].to_numpy()
-        
+            y = data.original[self.controller.data.filter_ch[0]].to_numpy()
+        self.plot_raw_signal.clear()
+        self.plot_raw_spectrum.clear()
         self.plot_raw_signal.plot(y)
         self.plot_raw_signal.getAxis('bottom').setScale(1/20000)
         print(y)
         freq_data = self.controller.data.compute_frequency_content(
                 signal_1d=y,
                 fs=self.controller.data.fs,
+                nperseg=100000,
             )
         self.plot_psd(self.plot_raw_spectrum, freq_data)
 
@@ -184,11 +210,14 @@ class ImportTab(QWidget):
                 # Fallback for other formats
                 y_f = data.filtered[self.controller.data.filter_ch[0]].to_numpy()
             
+            self.plot_filt_signal.clear()
+            self.plot_filt_spectrum.clear()
             self.plot_filt_signal.plot(y_f)
             self.plot_filt_signal.getAxis('bottom').setScale(1/self.controller.data.fs)
             freq_data = self.controller.data.compute_frequency_content(
                 signal_1d=y_f,
-                fs=self.controller.data.fs
+                fs=self.controller.data.fs,
+                nperseg=100000
                 )
             self.plot_psd(self.plot_filt_spectrum, freq_data)
     def clear(self):
@@ -211,6 +240,11 @@ class ImportTab(QWidget):
         # Convert PSD to dB for consistency with matplotlib
         psd_db = 10 * np.log10(psd + np.finfo(float).eps)
 
+        # Remove non-positive frequencies (log axis requires positive x)
+        mask = freqs > 0
+        freqs = freqs[mask]
+        psd_db = psd_db[mask]
+
         # --- Plot ---
         plot.plot(
             freqs,
@@ -225,9 +259,11 @@ class ImportTab(QWidget):
 
         # --- Log frequency axis (recommended for neural data) ---
         plot.setLogMode(x=True, y=False)
-
         # --- Grid ---
         plot.showGrid(x=True, y=True, alpha=0.3)
 
-        # --- Auto-range once ---
-        plot.enableAutoRange(axis=pg.ViewBox.XYAxes, enable=True)
+        # --- Set x-axis to start from 0.1 Hz ---
+        max_freq = freqs[-1] if len(freqs) > 0 else 1000
+        plot.setXRange(np.log10(0.1), np.log10(max_freq), padding=0)
+        # --- Auto-range y-axis ---
+        plot.enableAutoRange(axis=pg.ViewBox.YAxis, enable=True)
