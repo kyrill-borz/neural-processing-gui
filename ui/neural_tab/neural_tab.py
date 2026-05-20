@@ -15,6 +15,17 @@ class NeuralTab(QWidget):
         self.min_threshold_std = 2.5
         self.maximum_height_std = 10.0
 
+        self.COLOUR_CYCLE = [
+                "#1f77b4",  # blue
+                "#d62728",  # red
+                "#2ca02c",  # green
+                "#ff7f0e",  # orange
+                "#9467bd",  # purple
+                "#8c564b",  # brown
+                "#e377c2",  # pink
+                "#7f7f7f",  # gray
+            ]
+        
     def _build_ui(self):
         layout = QGridLayout(self)
 
@@ -30,12 +41,13 @@ class NeuralTab(QWidget):
                                           - ISI Distribution: Computes the distribution of inter-spike intervals for the detected spikes, displaying a histogram for each window.\n\n
                                           - Clustering of Spikes: Clusters detected spikes based on their waveforms to identify potential different neuron types or units. Provides average waveform and ISI distribution for each cluster.""")
         layout.addWidget(self.singleInfo, 0, 1, alignment=Qt.AlignRight)
-        layout.addWidget(self.multiChCheck, 0, 2)
+        layout.addWidget(self.multiChCheck, 0, 2, 1, 1)
         self.multiInfo = InfoHoverButton("""Information about the different Multiple Channel Analysis functions: \n\n
                                          - Multiple Channel Spike Detection: Detects spikes across multiple channels simultaneously, which can help identify synchronous firing patterns. Parameters are similar to single channel spike detection but applied across all selected channels.\n\n
                                          - Cross Correlation of Spike Trains: Analyzes the temporal relationship between spike trains from different channels to identify potential functional connectivity or synchrony.\n\n
-                                         - Propagation Coefficient: Measures the speed and direction of spike propagation across the electrode array, which can provide insights into network dynamics and connectivity.""")
-        layout.addWidget(self.multiInfo, 0, 2, alignment=Qt.AlignRight)
+                                         - Propagation Coefficient: Measures the speed and direction of spike propagation across the electrode array, which can provide insights into network dynamics and connectivity.\n\n
+                                         Toggle "Same thresholds" to choose whether the selected channels use a single global threshold computation or compute thresholds separately for each channel after channel selection.""")
+        layout.addWidget(self.multiInfo, 0, 3, alignment=Qt.AlignLeft)
 
         self.refCombo = QComboBox()
         self.refCombo.addItems([
@@ -82,7 +94,11 @@ class NeuralTab(QWidget):
             #"Directionality Analysis",
             "Propagation Coefficient",
         ])
-        layout.addWidget(self.multiAnalysisCombo, 1, 2)
+        layout.addWidget(self.multiAnalysisCombo, 1, 2, 1, 2)
+
+        self.sameThresholdsCheck = QCheckBox("Same thresholds")
+        self.sameThresholdsCheck.setChecked(False)
+        layout.addWidget(self.sameThresholdsCheck, 0, 3, alignment=Qt.AlignRight)
 
         # self.plot_pg2_waveform = pg.PlotWidget(title="Average Spike Waveform")
         # layout.addWidget(self.plot_pg2_waveform, 4, 0, 1, 3)
@@ -95,14 +111,14 @@ class NeuralTab(QWidget):
 
         self.scroll.setWidget(self.plot_container)
 
-        layout.addWidget(self.scroll, 2, 0, 2, 3)
+        layout.addWidget(self.scroll, 2, 0, 2, 4)
 
         self.btns = QDialogButtonBox(
             QDialogButtonBox.Ok | QDialogButtonBox.Cancel
         )
 
         layout.addWidget(self.refCombo, 0, 0)
-        layout.addWidget(self.btns, 4, 2)
+        layout.addWidget(self.btns, 4, 3)
 
         self.btns.accepted.connect(self.apply)
         self.dropBadChCheck.clicked.connect(self.handleChannelDisplayButton)
@@ -548,7 +564,7 @@ class NeuralTab(QWidget):
 
             params = dialog.get_values()
             params["channel"] = self.controller.reverse_channel_names[params["channel"]]
-            self.min_threshold_std = params["threshold_std"]
+            self.min_threshold_std = params["min_threshold_std"]
             self.maximum_height_std = params["maximum_height_std"]
             spike_data = self.get_spike_data(params["channel"], 
                                              height_std=params["min_threshold_std"], 
@@ -598,16 +614,24 @@ class NeuralTab(QWidget):
             features = clustering_result["features"]
             labels = clustering_result["labels"]
 
+            feature_series = []
+            for i, label in enumerate(np.unique(labels)):
+                mask = labels == label
+                feature_series.append({
+                    "x": features[mask, 0],
+                    "y": features[mask, 1],
+                    "type": "scatter",
+                    "name": f"Cluster {label}",
+                    "color": self.COLOUR_CYCLE[i % len(self.COLOUR_CYCLE)],
+                })
+
             plots.append({
                 "kind": "plot",
                 "title": "Feature Space (Peak-to-Peak vs Energy)",
-                "series": [{
-                    "x": features[:, 0],
-                    "y": features[:, 1],
-                    "type": "scatter"
-                }],
+                "series": feature_series,
                 "xlabel": "Peak-to-Peak (uV)",
                 "ylabel": "Energy (uV^2)",
+                "grid": True,
             })
 
             analysis_payload = {
@@ -883,6 +907,7 @@ class NeuralTab(QWidget):
         }
     def apply_multi_channel_analysis(self):
         analysis = self.multiAnalysisCombo.currentText()
+        same_thresholds = self.sameThresholdsCheck.isChecked()
         channel_names = self.controller.channel_names.values() if self.controller.channel_names else self.controller.data.filter_ch
         if analysis == "Multiple Channel Spike Detection":
             param_spec = {
@@ -917,6 +942,25 @@ class NeuralTab(QWidget):
                             "max": 10,
                         },
             }
+            if not same_thresholds:
+                        param_spec.update({
+                        # When not using same thresholds, target how many spikes per channel we aim for
+                        "target_spikes_per_channel": {
+                            "type": "int",
+                            "label": "Target Spikes per Channel",
+                            "default": 100,
+                            "min": 1,
+                            "max": 10000,
+                        },
+                        "tolerance_percent": {
+                            "type": "int",
+                            "label": "Tolerance (%)",
+                            "default": 20,
+                            "min": 1,
+                            "max": 100,
+                        }
+            })
+
             dialog = ParameterDialog(param_spec, parent=self)
 
             if dialog.exec_() != QDialog.Accepted:
@@ -984,10 +1028,10 @@ class NeuralTab(QWidget):
                 window_ms=params["window_ms"]
             )
             spike_trains = {
-                ch: spike_results[ch]["indices"]
+                ch: spike_results[ch]["times"] * 1000
                 for ch in spike_results
-            } if spike_results is not None else {}
-            
+                if spike_results[ch]["times"] is not None
+            }
             corr_result = self.controller.data.spatial_spike_correlation(
                 spike_trains,
                 correct_order=[16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31]
@@ -1106,6 +1150,7 @@ class NeuralTab(QWidget):
             spike_trains = {
                 ch: spike_results[ch]["times"] * 1000
                 for ch in spike_results
+                if spike_results[ch]["times"] is not None
             }
             result = self.controller.data.rolling_propagation_index(
                 spike_trains,
@@ -1118,18 +1163,29 @@ class NeuralTab(QWidget):
                 bin_width=0.002
             )                                                                   
 
+            # Group pairs by distance and assign colors
+            COLOR_CYCLE = self.COLOUR_CYCLE
+            
+            distance_to_color = {}
+            unique_distances = sorted(set(result.get("electrode_distances", {}).values()))
+            for idx, dist in enumerate(unique_distances):
+                distance_to_color[dist] = COLOR_CYCLE[idx % len(COLOR_CYCLE)]
+            
             series = []
-
-            for i, pair in enumerate(result["pairs"]):
+            for pair in result["pairs"]:
                 dist = result.get("electrode_distances", {}).get(pair, None)
                 name = f"PI {pair[0]}-{pair[1]}"
                 if dist is not None:
                     name = f"{name} ({dist:.2f} mm)"
+                
+                color = distance_to_color.get(dist, COLOR_CYCLE[0]) if dist is not None else COLOR_CYCLE[0]
+                
                 series.append({
                     "type": "line",
                     "name": name,
                     "x": result["periods_min"],
                     "y": result["pi_storage"][pair],
+                    "color": color,
                 })
 
             analysis_payload = {
