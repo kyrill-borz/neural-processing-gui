@@ -68,6 +68,8 @@ class AnalysisWindow(QMainWindow):
                             x, y,
                             pen=None,
                             symbol="o",
+                            symbolBrush=colour,
+                            symbolPen=colour,
                             name=name
                         )
 
