@@ -14,6 +14,8 @@ class NeuralTab(QWidget):
         self._last_ref_method = None
         self.min_threshold_std = 2.5
         self.maximum_height_std = 10.0
+        # Per-channel threshold cache: {channel_internal_name: {'threshold_std': X, 'maximum_height_std': Y}}
+        self.channel_thresholds = {}
 
         self.COLOUR_CYCLE = [
                 "#1f77b4",  # blue
@@ -587,7 +589,7 @@ class NeuralTab(QWidget):
                     "kind": "plot",
                     "title": f"Cluster {i} Mean Waveform",
                     "series": [{
-                        "x": np.arange(len(mean_wf)),
+                        "x": np.arange(len(mean_wf)) / self.controller.data.fs * 1000,
                         "y": mean_wf,
                         "type": "line"
                     }],
@@ -670,6 +672,7 @@ class NeuralTab(QWidget):
 
         firing_rates = []
         channel_labels = []
+        channel_numbers = []
 
         # ------------------------------------------------
         # Raster + firing rate preparation
@@ -687,16 +690,36 @@ class NeuralTab(QWidget):
 
             channels.append(ch)
 
-            # Raster coordinates
+            # determine numeric channel id (fall back to index)
+            ch_num = None
+            try:
+                # if channel is numeric
+                if isinstance(ch, (int,)):
+                    ch_num = int(ch)
+                else:
+                    # try to extract digits from strings like 'ch_24' or '24'
+                    import re
+                    m = re.search(r"(\d+)", str(ch))
+                    if m:
+                        ch_num = int(m.group(1))
+            except Exception:
+                ch_num = None
+
+            if ch_num is None:
+                ch_num = idx
+
+            # Raster coordinates: use real channel numbers for y-axis
             raster_x.extend(spike_times)
-            raster_y.extend([idx] * len(spike_times))
+            raster_y.extend([ch_num] * len(spike_times))
 
             # Firing rate
             duration = spike_times[-1] if len(spike_times) > 0 else 1
             rate = len(spike_times) / duration
 
             firing_rates.append(rate)
-            channel_labels.append(ch)
+            # store display label and numeric id
+            channel_labels.append(self.controller.get_channel_name(ch) if hasattr(self, 'controller') else str(ch))
+            channel_numbers.append(ch_num)
 
             # ------------------------------------------------
             # ISI histogram per channel
@@ -758,7 +781,7 @@ class NeuralTab(QWidget):
 
                 }],
                 "xlabel": "Time (s)",
-                "ylabel": "Channel Index",
+                "ylabel": "Channel",
                 "time_axis": True
             })
 
@@ -772,13 +795,14 @@ class NeuralTab(QWidget):
                 "kind": "plot",
                 "title": "Channel Firing Rates",
                 "series": [{
-                    "x": np.arange(len(firing_rates)),
+                    "x": np.array(channel_numbers),
                     "y": firing_rates,
                     "type": "bar"
                 }],
                 "xlabel": "Channel",
                 "ylabel": "Rate (Hz)",
-                "labels": channel_labels
+                "labels": channel_labels,
+                "x_numbers": channel_numbers
             })
 
         # ------------------------------------------------
@@ -917,23 +941,6 @@ class NeuralTab(QWidget):
                             "label": "Channels",
                             "default": list(channel_names)[0] if channel_names else None,
                         },
-                        "threshold_std": {
-                            "type": "float",
-                            "label": "Spike Threshold (std)",
-                            "default": 4.5,
-                            "min": 0,
-                            "max": 20,
-                            "step": 0.1,
-                        },
-                        "maximum_height_std": {
-                            "type": "float",
-                            "label": "Maximum Spike Threshold (std)",
-                            "default": 10.0,
-                            "min": 0,
-                            "max": 50,
-                            "step": 0.1,
-                        },
-
                         "window_ms": {
                             "type": "int",
                             "label": "Waveform Window (ms)",
@@ -942,24 +949,26 @@ class NeuralTab(QWidget):
                             "max": 10,
                         },
             }
-            if not same_thresholds:
-                        param_spec.update({
-                        # When not using same thresholds, target how many spikes per channel we aim for
-                        "target_spikes_per_channel": {
-                            "type": "int",
-                            "label": "Target Spikes per Channel",
-                            "default": 100,
-                            "min": 1,
-                            "max": 10000,
-                        },
-                        "tolerance_percent": {
-                            "type": "int",
-                            "label": "Tolerance (%)",
-                            "default": 20,
-                            "min": 1,
-                            "max": 100,
-                        }
-            })
+
+            if same_thresholds:
+                param_spec.update({
+                    "threshold_std": {
+                        "type": "float",
+                        "label": "Spike Threshold (std)",
+                        "default": 4.5,
+                        "min": 0,
+                        "max": 20,
+                        "step": 0.1,
+                    },
+                    "maximum_height_std": {
+                        "type": "float",
+                        "label": "Maximum Spike Threshold (std)",
+                        "default": 10.0,
+                        "min": 0,
+                        "max": 50,
+                        "step": 0.1,
+                    },
+                })
 
             dialog = ParameterDialog(param_spec, parent=self)
 
@@ -967,15 +976,69 @@ class NeuralTab(QWidget):
                     return  # User cancelled
 
             params = dialog.get_values()
-            params["channels"] = [self.controller.reverse_channel_names[ch] for ch in params["channels"]]
-            results = self.controller.data.multi_channel_spike_analysis_polars(
-                channels=params["channels"],
-                height_std=params["threshold_std"],
-                maximum_height_std=params["maximum_height_std"],
-                min_distance_ms=1/500 * self.controller.data.fs,
-                window_ms=params["window_ms"]
-            )
-            analysis_payload = self.build_multi_channel_dashboard(results, fs=20000)
+            selected_display_channels = params["channels"]
+            if not selected_display_channels:
+                return
+
+            selected_channels = [self.controller.reverse_channel_names[ch] for ch in selected_display_channels]
+            results = {}
+
+            if same_thresholds:
+                results = self.controller.data.multi_channel_spike_analysis_polars(
+                    channels=selected_channels,
+                    height_std=params["threshold_std"],
+                    maximum_height_std=params["maximum_height_std"],
+                    min_distance_ms=1/500 * self.controller.data.fs,
+                    window_ms=params["window_ms"]
+                )
+            else:
+                threshold_spec = {}
+                for display_name in selected_display_channels:
+                    internal_name = self.controller.reverse_channel_names[display_name]
+                    # Use cached values if available
+                    cached = self.channel_thresholds.get(internal_name, {})
+                    threshold_spec[f"{display_name}_threshold_std"] = {
+                        "type": "float",
+                        "label": f"{display_name} Spike Threshold (std)",
+                        "default": cached.get('threshold_std', self.min_threshold_std),
+                        "min": 0,
+                        "max": 20,
+                        "step": 0.1,
+                    }
+                    threshold_spec[f"{display_name}_maximum_height_std"] = {
+                        "type": "float",
+                        "label": f"{display_name} Maximum Spike Threshold (std)",
+                        "default": cached.get('maximum_height_std', self.max_threshold_std),
+                        "min": 0,
+                        "max": 50,
+                        "step": 0.1,
+                    }
+
+                threshold_dialog = ParameterDialog(threshold_spec, title="Channel-Specific Thresholds", parent=self)
+                if threshold_dialog.exec_() != QDialog.Accepted:
+                    return  # User cancelled
+
+                thresholds = threshold_dialog.get_values()
+
+                for display_name, internal_name in zip(selected_display_channels, selected_channels):
+                    height_std = thresholds.get(f"{display_name}_threshold_std", self.min_threshold_std)
+                    maximum_height_std = thresholds.get(f"{display_name}_maximum_height_std", self.max_threshold_std)
+                    # Cache the thresholds for this channel
+                    self.channel_thresholds[internal_name] = {
+                        'threshold_std': height_std,
+                        'maximum_height_std': maximum_height_std
+                    }
+                    results[internal_name] = self.controller.data.single_channel_spike_analysis_polars(
+                        channel=internal_name,
+                        height_std=height_std,
+                        maximum_height_std=maximum_height_std,
+                        min_distance_ms=1/500 * self.controller.data.fs,
+                        waveform_width_ms=params["window_ms"],
+                        extract_waveforms=True,
+                        use_referenced=True,
+                    )
+
+            analysis_payload = self.build_multi_channel_dashboard(results, fs=self.controller.data.fs)
 
             self.analysis_window = AnalysisWindow(analysis_payload, self)
             self.analysis_window.show()
@@ -987,22 +1050,6 @@ class NeuralTab(QWidget):
                             "label": "Channels",
                             "default": list(channel_names)[0] if channel_names else None,
                         },
-                        "threshold_std": {
-                            "type": "float",
-                            "label": "Spike Threshold (std)",
-                            "default": self.min_threshold_std,
-                            "min": 0,
-                            "max": 20,
-                            "step": 0.1,
-                        },
-                        "maximum_height_std": {
-                            "type": "float",
-                            "label": "Maximum Spike Threshold (std)",
-                            "default": self.maximum_height_std,
-                            "min": 0,
-                            "max": 50,
-                            "step": 0.1,
-                        },
                         "window_ms": {
                             "type": "int",
                             "label": "Waveform Window (ms)",
@@ -1011,22 +1058,97 @@ class NeuralTab(QWidget):
                             "max": 10,
                         },
             }
+
+            if same_thresholds:
+                param_spec.update({
+                    "threshold_std": {
+                        "type": "float",
+                        "label": "Spike Threshold (std)",
+                        "default": self.min_threshold_std,
+                        "min": 0,
+                        "max": 20,
+                        "step": 0.1,
+                    },
+                    "maximum_height_std": {
+                        "type": "float",
+                        "label": "Maximum Spike Threshold (std)",
+                        "default": self.maximum_height_std,
+                        "min": 0,
+                        "max": 50,
+                        "step": 0.1,
+                    },
+                })
+
             dialog = ParameterDialog(param_spec, parent=self)
 
             if dialog.exec_() != QDialog.Accepted:
                     return  # User cancelled
 
             params = dialog.get_values()
-            params["channels"] = [self.controller.reverse_channel_names[ch] for ch in params["channels"]]
-            self.min_threshold_std = params["threshold_std"]
-            self.maximum_height_std = params["maximum_height_std"]
-            spike_results = self.controller.data.multi_channel_spike_analysis_polars(
-                channels=params["channels"],
-                height_std=params["threshold_std"],
-                maximum_height_std=params["maximum_height_std"],
-                min_distance_ms=1/500 * self.controller.data.fs,
-                window_ms=params["window_ms"]
-            )
+            selected_display_channels = params["channels"]
+            if not selected_display_channels:
+                return
+
+            selected_channels = [self.controller.reverse_channel_names[ch] for ch in selected_display_channels]
+            spike_results = {}
+
+            if same_thresholds:
+                self.min_threshold_std = params["threshold_std"]
+                self.maximum_height_std = params["maximum_height_std"]
+                spike_results = self.controller.data.multi_channel_spike_analysis_polars(
+                    channels=selected_channels,
+                    height_std=params["threshold_std"],
+                    maximum_height_std=params["maximum_height_std"],
+                    min_distance_ms=1/500 * self.controller.data.fs,
+                    window_ms=params["window_ms"]
+                )
+            else:
+                threshold_spec = {}
+                for display_name in selected_display_channels:
+                    internal_name = self.controller.reverse_channel_names[display_name]
+                    # Use cached values if available
+                    cached = self.channel_thresholds.get(internal_name, {})
+                    threshold_spec[f"{display_name}_threshold_std"] = {
+                        "type": "float",
+                        "label": f"{display_name} Spike Threshold (std)",
+                        "default": cached.get('threshold_std', self.min_threshold_std),
+                        "min": 0,
+                        "max": 20,
+                        "step": 0.1,
+                    }
+                    threshold_spec[f"{display_name}_maximum_height_std"] = {
+                        "type": "float",
+                        "label": f"{display_name} Maximum Spike Threshold (std)",
+                        "default": cached.get('maximum_height_std', self.max_threshold_std),
+                        "min": 0,
+                        "max": 50,
+                        "step": 0.1,
+                    }
+
+                threshold_dialog = ParameterDialog(threshold_spec, title="Channel-Specific Thresholds", parent=self)
+                if threshold_dialog.exec_() != QDialog.Accepted:
+                    return  # User cancelled
+
+                thresholds = threshold_dialog.get_values()
+
+                for display_name, internal_name in zip(selected_display_channels, selected_channels):
+                    height_std = thresholds.get(f"{display_name}_threshold_std", self.min_threshold_std)
+                    maximum_height_std = thresholds.get(f"{display_name}_maximum_height_std", self.max_threshold_std)
+                    # Cache the thresholds for this channel
+                    self.channel_thresholds[internal_name] = {
+                        'threshold_std': height_std,
+                        'maximum_height_std': maximum_height_std
+                    }
+                    spike_results[internal_name] = self.controller.data.single_channel_spike_analysis_polars(
+                        channel=internal_name,
+                        height_std=height_std,
+                        maximum_height_std=maximum_height_std,
+                        min_distance_ms=1/500 * self.controller.data.fs,
+                        waveform_width_ms=params["window_ms"],
+                        extract_waveforms=True,
+                        use_referenced=True,
+                    )
+
             spike_trains = {
                 ch: spike_results[ch]["times"] * 1000
                 for ch in spike_results
@@ -1100,22 +1222,6 @@ class NeuralTab(QWidget):
                             "label": "Channels",
                             "default": list(channel_names)[0] if channel_names else None,
                         },
-                        "threshold_std": {
-                            "type": "float",
-                            "label": "Spike Threshold (std)",
-                            "default": self.min_threshold_std,
-                            "min": 0,
-                            "max": 20,
-                            "step": 0.1,
-                        },
-                        "maximum_height_std": {
-                            "type": "float",
-                            "label": "Maximum Spike Threshold (std)",
-                            "default": self.maximum_height_std,
-                            "min": 0,
-                            "max": 50,
-                            "step": 0.1,
-                        },
                         "window_ms": {
                             "type": "int",
                             "label": "Waveform Window (ms)",
@@ -1131,22 +1237,97 @@ class NeuralTab(QWidget):
                             "max": 10,
                         },
             }
+
+            if same_thresholds:
+                param_spec.update({
+                    "threshold_std": {
+                        "type": "float",
+                        "label": "Spike Threshold (std)",
+                        "default": self.min_threshold_std,
+                        "min": 0,
+                        "max": 20,
+                        "step": 0.1,
+                    },
+                    "maximum_height_std": {
+                        "type": "float",
+                        "label": "Maximum Spike Threshold (std)",
+                        "default": self.maximum_height_std,
+                        "min": 0,
+                        "max": 50,
+                        "step": 0.1,
+                    },
+                })
+
             dialog = ParameterDialog(param_spec, parent=self)
 
             if dialog.exec_() != QDialog.Accepted:
                     return  # User cancelled
 
             params = dialog.get_values()
-            self.min_threshold_std = params["threshold_std"]
-            self.maximum_height_std = params["maximum_height_std"]
-            params["channels"] = [self.controller.reverse_channel_names[ch] for ch in params["channels"]]
-            spike_results = self.controller.data.multi_channel_spike_analysis_polars(
-                channels=params["channels"],
-                height_std=params["threshold_std"],
-                maximum_height_std=params["maximum_height_std"],
-                min_distance_ms=1/500 * self.controller.data.fs,
-                window_ms=params["window_ms"]
-            )
+            selected_display_channels = params["channels"]
+            if not selected_display_channels:
+                return
+
+            selected_channels = [self.controller.reverse_channel_names[ch] for ch in selected_display_channels]
+            spike_results = {}
+
+            if same_thresholds:
+                self.min_threshold_std = params["threshold_std"]
+                self.maximum_height_std = params["maximum_height_std"]
+                spike_results = self.controller.data.multi_channel_spike_analysis_polars(
+                    channels=selected_channels,
+                    height_std=params["threshold_std"],
+                    maximum_height_std=params["maximum_height_std"],
+                    min_distance_ms=1/500 * self.controller.data.fs,
+                    window_ms=params["window_ms"]
+                )
+            else:
+                threshold_spec = {}
+                for display_name in selected_display_channels:
+                    internal_name = self.controller.reverse_channel_names[display_name]
+                    # Use cached values if available
+                    cached = self.channel_thresholds.get(internal_name, {})
+                    threshold_spec[f"{display_name}_threshold_std"] = {
+                        "type": "float",
+                        "label": f"{display_name} Spike Threshold (std)",
+                        "default": cached.get('threshold_std', 4.5),
+                        "min": 0,
+                        "max": 20,
+                        "step": 0.1,
+                    }
+                    threshold_spec[f"{display_name}_maximum_height_std"] = {
+                        "type": "float",
+                        "label": f"{display_name} Maximum Spike Threshold (std)",
+                        "default": cached.get('maximum_height_std', 10.0),
+                        "min": 0,
+                        "max": 50,
+                        "step": 0.1,
+                    }
+
+                threshold_dialog = ParameterDialog(threshold_spec, title="Channel-Specific Thresholds", parent=self)
+                if threshold_dialog.exec_() != QDialog.Accepted:
+                    return  # User cancelled
+
+                thresholds = threshold_dialog.get_values()
+
+                for display_name, internal_name in zip(selected_display_channels, selected_channels):
+                    height_std = thresholds.get(f"{display_name}_threshold_std", 4.5)
+                    maximum_height_std = thresholds.get(f"{display_name}_maximum_height_std", 10.0)
+                    # Cache the thresholds for this channel
+                    self.channel_thresholds[internal_name] = {
+                        'threshold_std': height_std,
+                        'maximum_height_std': maximum_height_std
+                    }
+                    spike_results[internal_name] = self.controller.data.single_channel_spike_analysis_polars(
+                        channel=internal_name,
+                        height_std=height_std,
+                        maximum_height_std=maximum_height_std,
+                        min_distance_ms=1/500 * self.controller.data.fs,
+                        waveform_width_ms=params["window_ms"],
+                        extract_waveforms=True,
+                        use_referenced=True,
+                    )
+
             spike_trains = {
                 ch: spike_results[ch]["times"] * 1000
                 for ch in spike_results
