@@ -85,10 +85,10 @@ class ProcessingTab(QWidget):
 
             glucose_df['glucose'] = pd.to_numeric(glucose_df['glucose'], errors='coerce')
 
-            if 't_session_min' not in glucose_df.columns:
-                raise ValueError("CSV must contain a time column like 't_session_min', 'time', or 'clock_time'")
+            if 't_intan_min' not in glucose_df.columns:
+                raise ValueError("CSV must contain a time column like 't_intan_min', 'time', or 'clock_time'")
 
-            time_series = glucose_df['t_session_min']
+            time_series = glucose_df['t_intan_min']
             time_values = None
 
             if pd.api.types.is_numeric_dtype(time_series):
@@ -113,11 +113,11 @@ class ProcessingTab(QWidget):
 
             if pd.api.types.is_datetime64_any_dtype(time_values):
                 start_time = time_values.iloc[0]
-                glucose_df['t_session_min'] = (time_values - start_time).dt.total_seconds().astype(float)
+                glucose_df['t_intan_min'] = (time_values - start_time).dt.total_seconds().astype(float)
             else:
-                glucose_df['t_session_min'] = pd.to_numeric(time_values, errors='coerce').astype(float)
+                glucose_df['t_intan_min'] = pd.to_numeric(time_values, errors='coerce').astype(float)
 
-            glucose_df = glucose_df.dropna(subset=['t_session_min', 'glucose'])
+            glucose_df = glucose_df.dropna(subset=['t_intan_min', 'glucose'])
 
             # Get spike data for selected channels
             series = []
@@ -175,7 +175,7 @@ class ProcessingTab(QWidget):
                 })
 
             glucose_x, glucose_y = downsample(
-                glucose_df["t_session_min"].to_numpy(dtype=float),
+                glucose_df["t_intan_min"].to_numpy(dtype=float),
                 glucose_df["glucose"].to_numpy(dtype=float)
             )
 

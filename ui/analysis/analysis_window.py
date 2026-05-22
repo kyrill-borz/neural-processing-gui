@@ -1,6 +1,11 @@
-from PyQt5.QtWidgets import QMainWindow, QPushButton, QWidget, QVBoxLayout, QLabel, QScrollArea, QFileDialog
+import json
+import os
+import re
+
+from PyQt5.QtWidgets import QMainWindow, QPushButton, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QScrollArea, QFileDialog
 from PyQt5.QtCore import Qt, QRectF
 import pyqtgraph as pg
+from pyqtgraph.exporters import SVGExporter
 import numpy as np
 
 
@@ -18,6 +23,7 @@ class AnalysisWindow(QMainWindow):
 
         self.result = result
         self.time_reference_plot = None
+        self.plotted_items = []
 
         self.COLOR_CYCLE = [
             "#1f77b4",  # blue
@@ -117,6 +123,7 @@ class AnalysisWindow(QMainWindow):
                     update_eq_position()
 
                 layout.addWidget(plot)
+                self.plotted_items.append((plot, item.get("title", "plot"), item["kind"]))
 
                 continue
 
@@ -148,23 +155,57 @@ class AnalysisWindow(QMainWindow):
                 plot.setLabel("bottom", item.get("xlabel", ""))
 
                 layout.addWidget(graphics)
+                self.plotted_items.append((graphics, item.get("title", "image"), item["kind"]))
                 continue
         
-        self.export_button = QPushButton("Export JSON")
-        self.export_button.clicked.connect(self.export_JSON)
-        layout.addWidget(self.export_button)
+        button_row = QHBoxLayout()
+        self.export_json_button = QPushButton("Export JSON")
+        self.export_json_button.clicked.connect(self.export_JSON)
+        button_row.addWidget(self.export_json_button)
+
+        self.export_svg_button = QPushButton("Export SVGs")
+        self.export_svg_button.clicked.connect(self.export_SVGs)
+        button_row.addWidget(self.export_svg_button)
+
+        layout.addLayout(button_row)
         scroll.setWidget(central)
         self.setCentralWidget(scroll)
-    
+
+    def sanitize_filename(self, text: str) -> str:
+        name = (text or "").strip()
+        name = re.sub(r'[<>:"/\\|?*]', '_', name)
+        name = re.sub(r'\s+', '_', name)
+        return name or "plot"
+
+    def export_SVGs(self):
+        folder_path = QFileDialog.getExistingDirectory(
+            caption="Select Export Folder"
+        )
+        if not folder_path:
+            return
+
+        for idx, (widget, title, kind) in enumerate(self.plotted_items, start=1):
+            file_name = f"{self.sanitize_filename(title)}_{idx}.svg"
+            file_path = os.path.join(folder_path, file_name)
+
+            try:
+                if hasattr(widget, 'plotItem'):
+                    exporter = SVGExporter(widget.plotItem)
+                else:
+                    exporter = SVGExporter(widget.scene())
+                exporter.export(file_path)
+            except Exception as e:
+                print(f"Failed to export {title or kind} to SVG: {e}")
+
     def export_JSON(self):
         folder_path = QFileDialog.getExistingDirectory(
             caption="Select Export Folder"
         )
         if not folder_path:
             return
-        json = self.result
+        json_data = self.result
         with open(f"{folder_path}/data.json", 'w') as f:
-            json.dump(json, f)
+            json.dump(json_data, f)
 
 
 
