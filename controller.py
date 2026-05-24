@@ -11,7 +11,16 @@ class AppController:
         self.filt_config['W'] = [300, 500] 
         self.filt_config['Butterworth']['Wn'] = filt_config['W']
         self.data = apploadfilepolars(start_min, dur_min, path, port=port)
-        self.data.filter_ch = ["ch_24","ch_25","ch_26","ch_27", "ch_28", "ch_29", "ch_30", "ch_31"]
+        columns = None
+        if hasattr(self.data, "columns"):
+            columns = self.data.columns
+        elif hasattr(self.data, "original") and hasattr(self.data.original, "columns"):
+            columns = self.data.original.columns
+        elif hasattr(self.data, "recording") and hasattr(self.data.recording, "columns"):
+            columns = self.data.recording.columns
+
+        self.data.filter_ch = [col for col in columns if col.startswith("ch")] if columns else []
+        print(self.data.filter_ch)
         self.make_channel_names()
         return self.data
 
