@@ -310,7 +310,7 @@ class NeuralTab(QWidget):
                     "label": "Waveform Window (ms)",
                     "default": 2,
                     "min": 1,
-                    "max": 10,
+                    "max": 1000,
                 },
                 # "polarity": {
                 #     "type": "choice",
@@ -555,7 +555,7 @@ class NeuralTab(QWidget):
                             "label": "Waveform Window (ms)",
                             "default": 2,
                             "min": 1,
-                            "max": 10,
+                            "max": 1000,
                         },
             }
 
@@ -946,7 +946,7 @@ class NeuralTab(QWidget):
                             "label": "Waveform Window (ms)",
                             "default": 2,
                             "min": 1,
-                            "max": 10,
+                            "max": 1000,
                         },
             }
 
@@ -1008,7 +1008,7 @@ class NeuralTab(QWidget):
                     threshold_spec[f"{display_name}_maximum_height_std"] = {
                         "type": "float",
                         "label": f"{display_name} Maximum Spike Threshold (std)",
-                        "default": cached.get('maximum_height_std', self.max_threshold_std),
+                        "default": cached.get('maximum_height_std', self.maximum_height_std),
                         "min": 0,
                         "max": 50,
                         "step": 0.1,
@@ -1022,7 +1022,7 @@ class NeuralTab(QWidget):
 
                 for display_name, internal_name in zip(selected_display_channels, selected_channels):
                     height_std = thresholds.get(f"{display_name}_threshold_std", self.min_threshold_std)
-                    maximum_height_std = thresholds.get(f"{display_name}_maximum_height_std", self.max_threshold_std)
+                    maximum_height_std = thresholds.get(f"{display_name}_maximum_height_std", self.maximum_height_std)
                     # Cache the thresholds for this channel
                     self.channel_thresholds[internal_name] = {
                         'threshold_std': height_std,
@@ -1055,7 +1055,7 @@ class NeuralTab(QWidget):
                             "label": "Waveform Window (ms)",
                             "default": 2,
                             "min": 1,
-                            "max": 10,
+                            "max": 1000,
                         },
             }
 
@@ -1119,7 +1119,7 @@ class NeuralTab(QWidget):
                     threshold_spec[f"{display_name}_maximum_height_std"] = {
                         "type": "float",
                         "label": f"{display_name} Maximum Spike Threshold (std)",
-                        "default": cached.get('maximum_height_std', self.max_threshold_std),
+                        "default": cached.get('maximum_height_std', self.maximum_height_std),
                         "min": 0,
                         "max": 50,
                         "step": 0.1,
@@ -1133,7 +1133,7 @@ class NeuralTab(QWidget):
 
                 for display_name, internal_name in zip(selected_display_channels, selected_channels):
                     height_std = thresholds.get(f"{display_name}_threshold_std", self.min_threshold_std)
-                    maximum_height_std = thresholds.get(f"{display_name}_maximum_height_std", self.max_threshold_std)
+                    maximum_height_std = thresholds.get(f"{display_name}_maximum_height_std", self.maximum_height_std)
                     # Cache the thresholds for this channel
                     self.channel_thresholds[internal_name] = {
                         'threshold_std': height_std,
@@ -1183,7 +1183,7 @@ class NeuralTab(QWidget):
                             "label": "Waveform Window (ms)",
                             "default": 2,
                             "min": 1,
-                            "max": 10,
+                            "max": 1000,
                         },
             }
             dialog = ParameterDialog(param_spec, parent=self)
