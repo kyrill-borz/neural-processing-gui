@@ -257,7 +257,12 @@ class NeuralTab(QWidget):
         if not hasattr(self, "_spike_cache"):
             self._spike_cache = {}
 
-        if channel in self._spike_cache and self._spike_cache[channel]["height_std"] == height_std and self._spike_cache[channel]["window_ms"] == window_ms:
+        if (
+            channel in self._spike_cache
+            and self._spike_cache[channel]["height_std"] == height_std
+            and self._spike_cache[channel]["maximum_height_std"] == maximum_height_std
+            and self._spike_cache[channel]["window_ms"] == window_ms
+        ):
             return self._spike_cache[channel]["data"]
 
         # Compute and cache
@@ -273,7 +278,8 @@ class NeuralTab(QWidget):
         self._spike_cache[channel] = {
             "data": spike_result,
             "height_std": height_std,
-            "window_ms": window_ms
+            "maximum_height_std": maximum_height_std,
+            "window_ms": window_ms,
         }
 
         return spike_result
@@ -557,6 +563,13 @@ class NeuralTab(QWidget):
                             "min": 1,
                             "max": 1000,
                         },
+                        "cluster_number": {
+                            "type": "int",
+                            "label": "Number of Clusters",
+                            "default": 2,
+                            "min": 1,
+                            "max": 10,
+                        },
             }
 
             dialog = ParameterDialog(param_spec, parent=self)
@@ -577,7 +590,8 @@ class NeuralTab(QWidget):
 
             clustering_result = self.controller.data.cluster_spike_waveforms(
                 waveforms=spike_waveforms,
-                spike_times_sec=spike_times
+                spike_times_sec=spike_times,
+                n_clusters = params["cluster_number"]
             )
             plots = []
 
@@ -984,13 +998,15 @@ class NeuralTab(QWidget):
             results = {}
 
             if same_thresholds:
-                results = self.controller.data.multi_channel_spike_analysis_polars(
-                    channels=selected_channels,
-                    height_std=params["threshold_std"],
-                    maximum_height_std=params["maximum_height_std"],
-                    min_distance_ms=1/500 * self.controller.data.fs,
-                    window_ms=params["window_ms"]
-                )
+                self.min_threshold_std = params["threshold_std"]
+                self.maximum_height_std = params["maximum_height_std"]
+                for internal_name in selected_channels:
+                    results[internal_name] = self.get_spike_data(
+                        channel=internal_name,
+                        height_std=params["threshold_std"],
+                        maximum_height_std=params["maximum_height_std"],
+                        window_ms=params["window_ms"],
+                    )
             else:
                 threshold_spec = {}
                 for display_name in selected_display_channels:
@@ -1028,14 +1044,11 @@ class NeuralTab(QWidget):
                         'threshold_std': height_std,
                         'maximum_height_std': maximum_height_std
                     }
-                    results[internal_name] = self.controller.data.single_channel_spike_analysis_polars(
+                    results[internal_name] = self.get_spike_data(
                         channel=internal_name,
                         height_std=height_std,
                         maximum_height_std=maximum_height_std,
-                        min_distance_ms=1/500 * self.controller.data.fs,
-                        waveform_width_ms=params["window_ms"],
-                        extract_waveforms=True,
-                        use_referenced=True,
+                        window_ms=params["window_ms"],
                     )
 
             analysis_payload = self.build_multi_channel_dashboard(results, fs=self.controller.data.fs)
@@ -1095,13 +1108,13 @@ class NeuralTab(QWidget):
             if same_thresholds:
                 self.min_threshold_std = params["threshold_std"]
                 self.maximum_height_std = params["maximum_height_std"]
-                spike_results = self.controller.data.multi_channel_spike_analysis_polars(
-                    channels=selected_channels,
-                    height_std=params["threshold_std"],
-                    maximum_height_std=params["maximum_height_std"],
-                    min_distance_ms=1/500 * self.controller.data.fs,
-                    window_ms=params["window_ms"]
-                )
+                for internal_name in selected_channels:
+                    spike_results[internal_name] = self.get_spike_data(
+                        channel=internal_name,
+                        height_std=params["threshold_std"],
+                        maximum_height_std=params["maximum_height_std"],
+                        window_ms=params["window_ms"],
+                    )
             else:
                 threshold_spec = {}
                 for display_name in selected_display_channels:
@@ -1139,14 +1152,11 @@ class NeuralTab(QWidget):
                         'threshold_std': height_std,
                         'maximum_height_std': maximum_height_std
                     }
-                    spike_results[internal_name] = self.controller.data.single_channel_spike_analysis_polars(
+                    spike_results[internal_name] = self.get_spike_data(
                         channel=internal_name,
                         height_std=height_std,
                         maximum_height_std=maximum_height_std,
-                        min_distance_ms=1/500 * self.controller.data.fs,
-                        waveform_width_ms=params["window_ms"],
-                        extract_waveforms=True,
-                        use_referenced=True,
+                        window_ms=params["window_ms"],
                     )
 
             spike_trains = {
@@ -1274,13 +1284,13 @@ class NeuralTab(QWidget):
             if same_thresholds:
                 self.min_threshold_std = params["threshold_std"]
                 self.maximum_height_std = params["maximum_height_std"]
-                spike_results = self.controller.data.multi_channel_spike_analysis_polars(
-                    channels=selected_channels,
-                    height_std=params["threshold_std"],
-                    maximum_height_std=params["maximum_height_std"],
-                    min_distance_ms=1/500 * self.controller.data.fs,
-                    window_ms=params["window_ms"]
-                )
+                for internal_name in selected_channels:
+                    spike_results[internal_name] = self.get_spike_data(
+                        channel=internal_name,
+                        height_std=params["threshold_std"],
+                        maximum_height_std=params["maximum_height_std"],
+                        window_ms=params["window_ms"],
+                    )
             else:
                 threshold_spec = {}
                 for display_name in selected_display_channels:
@@ -1318,14 +1328,11 @@ class NeuralTab(QWidget):
                         'threshold_std': height_std,
                         'maximum_height_std': maximum_height_std
                     }
-                    spike_results[internal_name] = self.controller.data.single_channel_spike_analysis_polars(
+                    spike_results[internal_name] = self.get_spike_data(
                         channel=internal_name,
                         height_std=height_std,
                         maximum_height_std=maximum_height_std,
-                        min_distance_ms=1/500 * self.controller.data.fs,
-                        waveform_width_ms=params["window_ms"],
-                        extract_waveforms=True,
-                        use_referenced=True,
+                        window_ms=params["window_ms"],
                     )
 
             spike_trains = {
@@ -1339,28 +1346,33 @@ class NeuralTab(QWidget):
                 window_length_min = params["window_length_min"],
                 step_size_min = 1,
                 c2c_mm = 4.5,
-                max_delay_ms = 2,
-                bin_range=(-2, 2),
-                bin_width=0.002
+                max_delay_ms = 30,
+                min_spikes = 10,
+
             )                                                                   
 
             # Group pairs by distance and assign colors
             COLOR_CYCLE = self.COLOUR_CYCLE
             
+            DIST_PRECISION = 6  # decimal places to round to when keying distances
+
             distance_to_color = {}
-            unique_distances = sorted(set(result.get("electrode_distances", {}).values()))
+            unique_distances = sorted(set(
+                round(d, DIST_PRECISION)
+                for d in result.get("electrode_distances", {}).values()
+            ))
             for idx, dist in enumerate(unique_distances):
                 distance_to_color[dist] = COLOR_CYCLE[idx % len(COLOR_CYCLE)]
-            
+
             series = []
             for pair in result["pairs"]:
-                dist = result.get("electrode_distances", {}).get(pair, None)
+                raw_dist = result.get("electrode_distances", {}).get(pair, None)
+                dist = round(raw_dist, DIST_PRECISION) if raw_dist is not None else None
                 name = f"PI {pair[0]}-{pair[1]}"
                 if dist is not None:
                     name = f"{name} ({dist:.2f} mm)"
-                
+
                 color = distance_to_color.get(dist, COLOR_CYCLE[0]) if dist is not None else COLOR_CYCLE[0]
-                
                 series.append({
                     "type": "line",
                     "name": name,

@@ -152,18 +152,19 @@ class ImportTab(QWidget):
             y = data.original[self.controller.data.filter_ch[0]].to_numpy()
         self.plot_raw_signal.clear()
         self.plot_raw_spectrum.clear()
-        self.plot_raw_signal.plot(y)
-        self.plot_raw_signal.getAxis('bottom').setScale(1/20000)
-        print(y)
+        raw_curve = self.plot_raw_signal.plot(y, pen=pg.mkPen(color=(50, 50, 200), width=1))
+        raw_curve.setDownsampling(auto=True, method="peak")
+        raw_curve.setClipToView(True)
+        self.plot_raw_signal.getAxis('bottom').setScale(1 / self.controller.data.fs)
         freq_data = self.controller.data.compute_frequency_content(
                 signal_1d=y,
                 fs=self.controller.data.fs,
-                nperseg=100000,
+                nperseg=min(100000, len(y)) if len(y) > 0 else 512,
             )
         self.plot_psd(self.plot_raw_spectrum, freq_data)
 
 
-        if self.filterType.currentText() != "No filter":
+        if self.filterType.currentText() != "No filter": 
             if self.filterType.currentText() == "Automatic" or self.filterType.currentText() == "No Filter":
                 pass
             elif self.filterType.currentText() == "Butterworth":
@@ -212,12 +213,14 @@ class ImportTab(QWidget):
             
             self.plot_filt_signal.clear()
             self.plot_filt_spectrum.clear()
-            self.plot_filt_signal.plot(y_f)
-            self.plot_filt_signal.getAxis('bottom').setScale(1/self.controller.data.fs)
+            filt_curve = self.plot_filt_signal.plot(y_f, pen=pg.mkPen(color=(200, 50, 50), width=1))
+            filt_curve.setDownsampling(auto=True, method="peak")
+            filt_curve.setClipToView(True)
+            self.plot_filt_signal.getAxis('bottom').setScale(1 / self.controller.data.fs)
             freq_data = self.controller.data.compute_frequency_content(
                 signal_1d=y_f,
                 fs=self.controller.data.fs,
-                nperseg=100000
+                nperseg=min(100000, len(y_f)) if len(y_f) > 0 else 512
                 )
             self.plot_psd(self.plot_filt_spectrum, freq_data)
     def clear(self):
